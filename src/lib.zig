@@ -6,15 +6,15 @@ const PTRACE = linux.PTRACE;
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 
-const ProcessState = enum { stopped, running, exited, terminated };
+pub const ProcessState = enum { stopped, running, exited, terminated };
 
-const Process = struct {
+pub const Process = struct {
     const Self = @This();
     pid: posix.pid_t,
     terminate_on_end: bool,
     state: ProcessState,
 
-    pub fn launch(path: []const u8) !Self {
+    pub fn launch(path: [:0]const u8) !Self {
         const path_ptr: [*:0]const u8 = path.ptr;
         const argv = [_:null]?[*:0]const u8{path_ptr};
         const envp = [_:null]?[*:0]const u8{};
@@ -28,8 +28,8 @@ const Process = struct {
             return err;
         }
 
-        const process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
-        process.wait_on_signal();
+        var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
+        _ = try process.wait_on_signal();
 
         return process;
     }
@@ -40,8 +40,8 @@ const Process = struct {
         }
         try posix.ptrace(PTRACE.ATTACH, pid, 0, 0);
 
-        const process = Self{ .pid = pid, .terminate_on_end = false, .state = .stopped };
-        process.wait_on_signal();
+        var process = Self{ .pid = pid, .terminate_on_end = false, .state = .stopped };
+        _ = try process.wait_on_signal();
 
         return process;
     }
@@ -69,21 +69,22 @@ const Process = struct {
         self.state = .running;
     }
 
-    const StopReason = struct { reason: ProcessState, code: u32 };
+    pub const StopReason = struct { reason: ProcessState, code: u32 };
 
-    pub fn wait_on_signal(self: *Self) StopReason {
+    pub fn wait_on_signal(self: *Self) !StopReason {
         const result = posix.waitpid(self.pid, 0);
 
         const W = std.os.linux.W;
         if (W.IFEXITED(result.status)) {
             self.state = .exited;
-            return .{ .reason = .exited, .status = W.EXITSTATUS(result.status) };
+            return .{ .reason = .exited, .code = W.EXITSTATUS(result.status) };
         } else if (W.IFSIGNALED(result.status)) {
             self.state = .terminated;
-            return .{ .reason = .terminated, .status = W.TERMSIG(result.status) };
+            return .{ .reason = .terminated, .code = W.TERMSIG(result.status) };
         } else if (W.IFSTOPPED(result.status)) {
             self.state = .stopped;
-            return .{ .reason = .stopped, .status = W.STOPSIG(result.status) };
+            return .{ .reason = .stopped, .code = W.STOPSIG(result.status) };
         }
+        return error.UnexpectedSignal;
     }
 };
