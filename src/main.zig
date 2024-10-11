@@ -3,6 +3,8 @@ const Linenoise = @import("linenoise").Linenoise;
 const posix = std.posix;
 const linux = std.os.linux;
 const PTRACE = linux.PTRACE;
+const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
 
 fn attach(args: [][:0]u8) !posix.pid_t {
     var pid: posix.pid_t = 0;
@@ -34,6 +36,19 @@ fn attach(args: [][:0]u8) !posix.pid_t {
     return pid;
 }
 
+fn handle_command(allocator: Allocator, pid: posix.pid_t, input: []const u8) !void {
+    assert(input.len != 0);
+    const parts = std.mem.splitBackwardsScalar(u8, input, " ");
+    const command = parts.first();
+
+    if (std.mem.startsWith(u8, "continue", command)) {
+        resume_process(pid);
+        wait_on_signal(pid);
+    } else {
+        return error.UnknownCommand;
+    }
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -44,21 +59,33 @@ pub fn main() !void {
         }
     }
 
-    // const args = try std.process.argsAlloc(allocator);
-    // defer std.process.argsFree(allocator, args);
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
-    // const pid = try attach(args);
-    // const options = 0;
-    // const result = posix.waitpid(pid, options);
+    const pid = try attach(args);
+    const options = 0;
+    const result = posix.waitpid(pid, options);
     // _ = result;
 
     var ln = Linenoise.init(allocator);
     defer ln.deinit();
 
-    while (try ln.linenoise("hello> ")) |input| {
+    while (try ln.linenoise("zdb> ")) |input| {
         defer allocator.free(input);
-        std.debug.print("input: {s}\n", .{input});
-        try ln.history.add(input);
+
+        var line = "";
+        if (input.len == 0) {
+            if (ln.history.current > 0) {
+                line = ln.history.hist[ln.history.current];
+            }
+        } else {
+            line = input;
+            try ln.history.add(input);
+        }
+
+        if (line.len != 0) {
+            try handle_command(allocator, pid, line);
+        }
     }
 }
 
