@@ -36,14 +36,24 @@ fn attach(args: [][:0]u8) !posix.pid_t {
     return pid;
 }
 
-fn handle_command(allocator: Allocator, pid: posix.pid_t, input: []const u8) !void {
+fn resume_process(pid: posix.pid_t) !void {
+    try posix.ptrace(PTRACE.CONT, pid, 0, 0);
+}
+
+fn wait_on_signal(pid: posix.pid_t) !void {
+    const options = 0;
+    const result = posix.waitpid(pid, options);
+    _ = result;
+}
+
+fn handle_command(pid: posix.pid_t, input: []const u8) !void {
     assert(input.len != 0);
-    const parts = std.mem.splitBackwardsScalar(u8, input, " ");
+    var parts = std.mem.splitBackwardsSequence(u8, input, " ");
     const command = parts.first();
 
     if (std.mem.startsWith(u8, "continue", command)) {
-        resume_process(pid);
-        wait_on_signal(pid);
+        try resume_process(pid);
+        try wait_on_signal(pid);
     } else {
         return error.UnknownCommand;
     }
@@ -65,7 +75,7 @@ pub fn main() !void {
     const pid = try attach(args);
     const options = 0;
     const result = posix.waitpid(pid, options);
-    // _ = result;
+    _ = result;
 
     var ln = Linenoise.init(allocator);
     defer ln.deinit();
@@ -73,10 +83,10 @@ pub fn main() !void {
     while (try ln.linenoise("zdb> ")) |input| {
         defer allocator.free(input);
 
-        var line = "";
+        var line: []const u8 = "";
         if (input.len == 0) {
-            if (ln.history.current > 0) {
-                line = ln.history.hist[ln.history.current];
+            if (ln.history.hist.items.len > 0) {
+                line = ln.history.hist.items[ln.history.hist.items.len - 1];
             }
         } else {
             line = input;
@@ -84,7 +94,7 @@ pub fn main() !void {
         }
 
         if (line.len != 0) {
-            try handle_command(allocator, pid, line);
+            try handle_command(pid, line);
         }
     }
 }
