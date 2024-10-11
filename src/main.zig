@@ -35,30 +35,31 @@ fn attach(args: [][:0]u8) !posix.pid_t {
 }
 
 pub fn main() !void {
-    // // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    // std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-    // const stdout_file = std.io.getStdOut().writer();
-    // var bw = std.io.bufferedWriter(stdout_file);
-    // const stdout = bw.writer();
-
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const alloc = gpa.allocator();
+    const allocator = gpa.allocator();
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
             std.debug.print("Memory leak detected", .{});
         }
     }
-    const args = try std.process.argsAlloc(alloc);
-    defer std.process.argsFree(alloc, args);
-    const pid = try attach(args);
-    const options = 0;
-    const result = posix.waitpid(pid, options);
-    _ = result;
-    // _ = pid;
 
-    // try stdout.print("Run `zig build test` to run the tests.\n", .{});
-    // try bw.flush(); // don't forget to flush!
+    // const args = try std.process.argsAlloc(allocator);
+    // defer std.process.argsFree(allocator, args);
+
+    // const pid = try attach(args);
+    // const options = 0;
+    // const result = posix.waitpid(pid, options);
+    // _ = result;
+
+    var ln = Linenoise.init(allocator);
+    defer ln.deinit();
+
+    while (try ln.linenoise("hello> ")) |input| {
+        defer allocator.free(input);
+        std.debug.print("input: {s}\n", .{input});
+        try ln.history.add(input);
+    }
 }
 
 // test "simple test" {

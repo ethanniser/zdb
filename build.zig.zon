@@ -31,8 +31,7 @@
     .paths = .{
         "build.zig",
         "build.zig.zon",
-        "src",
-        // For example...
+        "src/",
         "LICENSE",
         "README.md",
     },
