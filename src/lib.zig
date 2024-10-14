@@ -50,15 +50,24 @@ pub const Process = struct {
     pub fn deinit(self: *Self) !void {
         if (self.pid != 0) {
             if (self.state == .running) {
-                try posix.kill(self.pid, posix.SIG.STOP);
+                posix.kill(self.pid, posix.SIG.STOP) catch |err| {
+                    std.debug.warn("Failed to stop process: {}\n", @errorName(err));
+                };
                 _ = posix.waitpid(self.pid, 0);
             }
 
-            try posix.ptrace(PTRACE.DETACH, self.pid, 0, 0);
-            try posix.kill(self.pid, posix.SIG.CONT);
+            posix.ptrace(PTRACE.DETACH, self.pid, 0, 0) catch |err| {
+                std.debug.warn("Failed to detach ptrace: {}\n", @errorName(err));
+            };
+
+            posix.kill(self.pid, posix.SIG.CONT) catch |err| {
+                std.debug.warn("Failed to continue process: {}\n", @errorName(err));
+            };
 
             if (self.terminate_on_end) {
-                try posix.kill(self.pid, posix.SIG.KILL);
+                posix.kill(self.pid, posix.SIG.KILL) catch |err| {
+                    std.debug.warn("Failed to kill process: {}\n", @errorName(err));
+                };
                 _ = posix.waitpid(self.pid, 0);
             }
         }
