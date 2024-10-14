@@ -8,6 +8,8 @@ const assert = std.debug.assert;
 const lib = @import("lib.zig");
 const Process = lib.Process;
 
+const stdout = std.io.getStdOut().writer();
+
 fn attach(args: [][:0]u8) !Process {
     // passing PID
     if (args.len == 3 and std.mem.eql(u8, args[1], "-p")) {
@@ -30,27 +32,27 @@ fn handle_command(process: *Process, input: []const u8) !void {
     if (std.mem.startsWith(u8, "continue", command)) {
         try process.resume_execution();
         const reason = try process.wait_on_signal();
-        print_stop_reason(process, reason);
+        try print_stop_reason(process, reason);
     } else {
         return error.UnknownCommand;
     }
 }
 
-fn print_stop_reason(process: *Process, reason: Process.StopReason) void {
-    std.log.info("Process {d} ", .{process.pid});
+fn print_stop_reason(process: *Process, reason: Process.StopReason) !void {
+    try stdout.print("Process {d} ", .{process.pid});
     switch (reason.reason) {
         .exited => {
-            std.log.info("exited with status {d}", .{reason.code});
+            try stdout.print("exited with status {d}\n", .{reason.code});
         },
         .terminated => {
-            std.log.info("terminated with signal {d}", .{reason.code}); // todo: find zig sigabbrev_np or sys_siglist
+            try stdout.print("terminated with signal {d}\n", .{reason.code}); // todo: find zig sigabbrev_np or sys_siglist
         },
         .stopped => {
-            std.log.info("stopped with signal {d}", .{reason.code}); // todo: find zig sigabbrev_np or sys_siglist
+            try stdout.print("stopped with signal {d}\n", .{reason.code}); // todo: find zig sigabbrev_np or sys_siglist
         },
         else => {},
     }
-    std.log.info("\n", .{});
+    try stdout.print("\n", .{});
 }
 
 pub fn main_loop(allocator: Allocator, process: *Process, ln: *Linenoise) !void {
@@ -69,7 +71,7 @@ pub fn main_loop(allocator: Allocator, process: *Process, ln: *Linenoise) !void 
 
         if (line.len != 0) {
             handle_command(process, line) catch |err| {
-                std.log.err("An error occured: {s}", .{@errorName(err)});
+                std.debug.print("An error occured: {s}\n", .{@errorName(err)});
             };
         }
     }
@@ -81,7 +83,7 @@ pub fn main() !void {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected", .{});
+            std.debug.print("Memory leak detected\n", .{});
         }
     }
 
@@ -91,11 +93,11 @@ pub fn main() !void {
     defer ln.deinit();
 
     var process = attach(args) catch |err| {
-        std.log.err("An error occured: {s}", .{@errorName(err)});
+        std.debug.print("An error occured: {s}\n", .{@errorName(err)});
         return err;
     };
 
     main_loop(allocator, &process, &ln) catch |err| {
-        std.log.err("An error occured: {s}", .{@errorName(err)});
+        std.debug.print("An error occured: {s}\n", .{@errorName(err)});
     };
 }

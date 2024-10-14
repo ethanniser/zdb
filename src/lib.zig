@@ -22,7 +22,7 @@ pub const Process = struct {
         if (pid == 0) {
             // We're in the child process
             // Execute debugee
-            try posix.ptrace(PTRACE.TRACEME, pid, 0, 0);
+            try posix.ptrace(PTRACE.TRACEME, 0, 0, 0);
             const err = posix.execvpeZ(path_ptr, &argv, &envp);
             // Execution of this program ends here if successful
             return err;
