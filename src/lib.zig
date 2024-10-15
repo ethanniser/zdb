@@ -46,7 +46,6 @@ pub const Process = struct {
         return process;
     }
 
-    // todo: dont handle errors?
     pub fn deinit(self: *Self) !void {
         if (self.pid != 0) {
             if (self.state == .running) {

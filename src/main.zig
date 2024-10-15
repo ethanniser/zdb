@@ -99,5 +99,6 @@ pub fn main() !void {
 
     main_loop(allocator, &process, &ln) catch |err| {
         std.debug.print("An error occured: {s}\n", .{@errorName(err)});
+        return err;
     };
 }
