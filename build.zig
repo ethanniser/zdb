@@ -29,6 +29,17 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("linenoise", linenoise);
 
+    // Create a indetical executable but we **dont** install it
+    const exe_check = b.addExecutable(.{
+        .name = "zdb",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_check.root_module.addImport("linenoise", linenoise);
+    const check = b.step("check", "Check if foo compiles");
+    check.dependOn(&exe_check.step);
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
