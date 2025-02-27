@@ -1,5 +1,5 @@
-run:
-    zig build run
+run *args:
+    zig build run -- {{ args }}
 
 test:
     zig build test
@@ -8,4 +8,4 @@ check:
     zig build check
 
 fmt:
-    zig fmt
+    zig fmt *.zig
