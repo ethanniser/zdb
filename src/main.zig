@@ -72,7 +72,7 @@ pub fn main_loop(allocator: Allocator, process: *Process, ln: *Linenoise) !void 
 
         if (line.len != 0) {
             handle_command(process, line) catch |err| {
-                std.debug.print("An error occured: {s}\n", .{@errorName(err)});
+                std.log.err("An error occured: {s}\n", .{@errorName(err)});
             };
         }
     }
@@ -84,7 +84,7 @@ pub fn main() !void {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected\n", .{});
+            std.log.warn("Memory leak detected\n", .{});
         }
     }
 
@@ -94,12 +94,13 @@ pub fn main() !void {
     defer ln.deinit();
 
     var process = attach(args) catch |err| {
-        std.debug.print("An error occured: {s}\n", .{@errorName(err)});
+        std.log.err("An error occured: {s}\n", .{@errorName(err)});
         return err;
     };
+    defer process.deinit();
 
     main_loop(allocator, &process, &ln) catch |err| {
-        std.debug.print("An error occured: {s}\n", .{@errorName(err)});
+        std.log.err("An error occured: {s}\n", .{@errorName(err)});
         return err;
     };
 }
