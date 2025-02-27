@@ -1,6 +1,7 @@
 export JSON_URL := "https://ziglang.org/download/index.json"
 export DEST_DIR := "zig-latest"
-export ZIG_PATH := "zig-latest/zig"
+# ZIG_PATH := "zig-latest/zig"
+ZIG_PATH := "zig"
 
 run *args:
     {{ ZIG_PATH }} build run -- {{ args }}
