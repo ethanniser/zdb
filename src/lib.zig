@@ -53,8 +53,9 @@ pub const Process = struct {
     pub fn deinit(self: *Self) void {
         std.log.debug("Deiniting process {d}", .{self.pid});
         if (self.pid != 0) {
+            // make sure we are stopped before we detach
             if (self.state == .running) {
-                std.log.debug("Killing process {d}", .{self.pid});
+                std.log.debug("Stopping process {d}", .{self.pid});
                 posix.kill(self.pid, posix.SIG.STOP) catch |err| {
                     std.log.warn("Failed to stop process: {s}\n", .{@errorName(err)});
                 };

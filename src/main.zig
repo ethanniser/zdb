@@ -43,6 +43,7 @@ pub fn main_loop(allocator: Allocator, process: *Process, ln: *Linenoise) !void 
     while (try ln.linenoise("zdb> ")) |input| {
         defer allocator.free(input);
 
+        // if line is blank, try to get the last line from history
         var line: []const u8 = "";
         if (input.len == 0) {
             if (ln.history.hist.items.len > 0) {
