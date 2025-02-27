@@ -29,7 +29,7 @@ pub const Process = struct {
         }
 
         var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
-        _ = try process.wait_on_signal();
+        _ = process.wait_on_signal();
 
         return process;
     }
@@ -41,7 +41,7 @@ pub const Process = struct {
         try posix.ptrace(PTRACE.ATTACH, pid, 0, 0);
 
         var process = Self{ .pid = pid, .terminate_on_end = false, .state = .stopped };
-        _ = try process.wait_on_signal();
+        _ = process.wait_on_signal();
 
         return process;
     }
@@ -78,22 +78,29 @@ pub const Process = struct {
         self.state = .running;
     }
 
-    pub const StopReason = struct { reason: ProcessState, code: u32 };
+    pub const StopReason = struct {
+        reason: ProcessState,
+        code: u32,
 
-    pub fn wait_on_signal(self: *Self) !StopReason {
-        const result = posix.waitpid(self.pid, 0);
-
-        const W = std.os.linux.W;
-        if (W.IFEXITED(result.status)) {
-            self.state = .exited;
-            return .{ .reason = .exited, .code = W.EXITSTATUS(result.status) };
-        } else if (W.IFSIGNALED(result.status)) {
-            self.state = .terminated;
-            return .{ .reason = .terminated, .code = W.TERMSIG(result.status) };
-        } else if (W.IFSTOPPED(result.status)) {
-            self.state = .stopped;
-            return .{ .reason = .stopped, .code = W.STOPSIG(result.status) };
+        pub fn from_status(status: u32) StopReason {
+            const W = std.os.linux.W;
+            if (W.IFEXITED(status)) {
+                return .{ .reason = .exited, .code = W.EXITSTATUS(status) };
+            } else if (W.IFSIGNALED(status)) {
+                return .{ .reason = .terminated, .code = W.TERMSIG(status) };
+            } else if (W.IFSTOPPED(status)) {
+                return .{ .reason = .stopped, .code = W.STOPSIG(status) };
+            } else {
+                unreachable; // is this actually unreachable?
+            }
         }
-        return error.UnexpectedSignal;
+    };
+
+    pub fn wait_on_signal(self: *Self) StopReason {
+        const result = posix.waitpid(self.pid, 0);
+        const stop_reason = StopReason.from_status(result.status);
+
+        std.log.debug("wait_on_signal: reason = {s}, code = {d}", .{ @tagName(stop_reason.reason), stop_reason.code }); // stringify code?
+        return stop_reason;
     }
 };

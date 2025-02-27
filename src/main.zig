@@ -32,7 +32,7 @@ fn handle_command(process: *Process, input: []const u8) !void {
 
     if (std.mem.startsWith(u8, "continue", command)) {
         try process.resume_execution();
-        const reason = try process.wait_on_signal();
+        const reason = process.wait_on_signal();
         try print_stop_reason(process, reason);
     } else {
         return error.UnknownCommand;
