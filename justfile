@@ -8,4 +8,4 @@ check:
     zig build check
 
 fmt:
-    zig fmt *.zig
+    zig fmt .
