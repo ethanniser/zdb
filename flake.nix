@@ -17,6 +17,7 @@
           packages = with pkgs; [
             zig
             zls
+            just
             configured-nvim
           ];
         };
