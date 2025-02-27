@@ -6,6 +6,8 @@ const PTRACE = linux.PTRACE;
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 const CString = @cImport(@cInclude("string.h"));
+const Pipe = @import("./pipe.zig");
+const utils = @import("./utils.zig");
 
 pub const State = enum { stopped, running, exited, terminated };
 
@@ -15,38 +17,49 @@ terminate_on_end: bool,
 state: State,
 
 pub fn launch(path: [:0]const u8) !Self {
+    var channel = try Pipe.init(.{ .close_on_exec = true });
+
     const path_ptr: [*:0]const u8 = path.ptr;
     const argv = [_:null]?[*:0]const u8{path_ptr}; // todo: allow passing args
     const envp = [_:null]?[*:0]const u8{};
     const pid = try posix.fork();
     if (pid == 0) {
         // We're in the child process
+        // If there is an error, send it to the parent process
 
-        // * if there are any errors in this section, propogate them back to the parent via exit code
-
+        channel.close_read();
         // setup tracing
         posix.ptrace(PTRACE.TRACEME, 0, 0, 0) catch |err| {
-            posix.exit(@intCast(@intFromError(err)));
-            unreachable;
+            send_error_and_exit(&channel, err);
         };
         // Execute debugee, if this is successful, execution of this program ends here
         const err = posix.execvpeZ(path_ptr, &argv, &envp);
-        posix.exit(@intCast(@intFromError(err)));
-        unreachable;
+        send_error_and_exit(&channel, err);
     }
 
-    std.log.debug("Launched process {d}", .{pid});
-    var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
-    const stop_reason = process.wait_on_signal();
-    // if the process has already exited something has gone wrong that is not from the program executing (we are expecting it to be stopped)
-    // in this case inspect the exit code to reconstruct the error
-    if (stop_reason.reason == .exited) {
-        const err = @errorFromInt(@as(u16, @truncate(stop_reason.code)));
+    channel.close_write();
+    var buffer: [256]u8 = undefined;
+    const len = try channel.read(buffer[0..]);
+    if (len > 0) {
+        // something is in the channel so there was an error
+        const err = utils.bytesToError(buffer[0..2].*); // Take first 2 bytes
         std.log.debug("Failed to launch process: {s}", .{@errorName(err)});
         return err;
     }
 
+    std.log.debug("Launched process {d}", .{pid});
+    var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
+    _ = process.wait_on_signal();
+
     return process;
+}
+
+fn send_error_and_exit(channel: *Pipe, err: anyerror) noreturn {
+    var error_bytes = utils.errorToBytes(err);
+    _ = channel.write(&error_bytes) catch |err2| {
+        std.log.warn("Failed to send error message: {s}\n", .{@errorName(err2)});
+    };
+    std.process.exit(1);
 }
 
 pub fn attach(pid: posix.pid_t) !Self {

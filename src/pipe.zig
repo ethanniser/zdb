@@ -6,13 +6,17 @@ const fd_t = posix.fd_t;
 read_fd: fd_t,
 write_fd: fd_t,
 
-pub fn init(close_on_exec: bool) !Self {
-    const result = try posix.pipe2(
-        if (close_on_exec) posix.O.CLOEXEC else 0,
-    );
+const Options = struct {
+    close_on_exec: bool,
+};
+
+pub fn init(options: Options) !Self {
+    const result = try posix.pipe2(.{
+        .CLOEXEC = options.close_on_exec,
+    });
     return Self{
-        .read_fd = result.fd[0],
-        .write_fd = result.fd[1],
+        .read_fd = result[0],
+        .write_fd = result[1],
     };
 }
 pub fn deinit(self: *Self) void {
@@ -47,6 +51,6 @@ pub fn close_write(self: *Self) void {
 pub fn read(self: *Self, buffer: []u8) !usize {
     return posix.read(self.read_fd, buffer);
 }
-pub fn write(self: *Self, bytes: []u8) !void {
-    try posix.write(self.write_fd, bytes);
+pub fn write(self: *Self, bytes: []u8) !usize {
+    return posix.write(self.write_fd, bytes);
 }
