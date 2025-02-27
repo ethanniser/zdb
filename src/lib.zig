@@ -5,6 +5,7 @@ const linux = std.os.linux;
 const PTRACE = linux.PTRACE;
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
+const CString = @cImport(@cInclude("string.h"));
 
 pub const ProcessState = enum { stopped, running, exited, terminated };
 
@@ -16,7 +17,7 @@ pub const Process = struct {
 
     pub fn launch(path: [:0]const u8) !Self {
         const path_ptr: [*:0]const u8 = path.ptr;
-        const argv = [_:null]?[*:0]const u8{path_ptr};
+        const argv = [_:null]?[*:0]const u8{path_ptr}; // todo: allow passing args
         const envp = [_:null]?[*:0]const u8{};
         const pid = try posix.fork();
         if (pid == 0) {
@@ -28,6 +29,7 @@ pub const Process = struct {
             return err;
         }
 
+        std.log.debug("Launched process {d}", .{pid});
         var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
         _ = process.wait_on_signal();
 
@@ -39,31 +41,38 @@ pub const Process = struct {
             return error.InvalidPid;
         }
         try posix.ptrace(PTRACE.ATTACH, pid, 0, 0);
+        // todo: for some reason does not error when process does not exist?
 
         var process = Self{ .pid = pid, .terminate_on_end = false, .state = .stopped };
         _ = process.wait_on_signal();
+        std.log.debug("Attached to process {d}", .{pid});
 
         return process;
     }
 
     pub fn deinit(self: *Self) void {
+        std.log.debug("Deiniting process {d}", .{self.pid});
         if (self.pid != 0) {
             if (self.state == .running) {
+                std.log.debug("Killing process {d}", .{self.pid});
                 posix.kill(self.pid, posix.SIG.STOP) catch |err| {
                     std.log.warn("Failed to stop process: {s}\n", .{@errorName(err)});
                 };
                 _ = posix.waitpid(self.pid, 0);
             }
 
+            std.log.debug("Detaching from process {d}", .{self.pid});
             posix.ptrace(PTRACE.DETACH, self.pid, 0, 0) catch |err| {
                 std.log.warn("Failed to detach ptrace: {s}\n", .{@errorName(err)});
             };
 
+            std.log.debug("Continuing process {d}", .{self.pid});
             posix.kill(self.pid, posix.SIG.CONT) catch |err| {
                 std.log.warn("Failed to continue process: {s}\n", .{@errorName(err)});
             };
 
             if (self.terminate_on_end) {
+                std.log.debug("Killing process {d}", .{self.pid});
                 posix.kill(self.pid, posix.SIG.KILL) catch |err| {
                     std.log.warn("Failed to kill process: {s}\n", .{@errorName(err)});
                 };
@@ -80,27 +89,52 @@ pub const Process = struct {
 
     pub const StopReason = struct {
         reason: ProcessState,
+        pid: posix.pid_t,
         code: u32,
 
-        pub fn from_status(status: u32) StopReason {
+        pub fn from_waitpid_result(result: posix.WaitPidResult) StopReason {
+            const status = result.status;
+            const pid = result.pid;
             const W = std.os.linux.W;
             if (W.IFEXITED(status)) {
-                return .{ .reason = .exited, .code = W.EXITSTATUS(status) };
+                return .{ .reason = .exited, .code = W.EXITSTATUS(status), .pid = pid };
             } else if (W.IFSIGNALED(status)) {
-                return .{ .reason = .terminated, .code = W.TERMSIG(status) };
+                return .{ .reason = .terminated, .code = W.TERMSIG(status), .pid = pid };
             } else if (W.IFSTOPPED(status)) {
-                return .{ .reason = .stopped, .code = W.STOPSIG(status) };
+                return .{ .reason = .stopped, .code = W.STOPSIG(status), .pid = pid };
             } else {
                 unreachable; // is this actually unreachable?
             }
+        }
+        pub fn to_string(self: StopReason, alloc: Allocator) ![]u8 {
+            return try switch (self.reason) {
+                .running => std.fmt.allocPrint(alloc, "process {d} is running", .{self.pid}),
+                .exited => std.fmt.allocPrint(alloc, "process {d} exited with status {d}", .{ self.pid, self.code }),
+                .terminated => std.fmt.allocPrint(alloc, "process {d} terminated with signal {d} - \"{s}\"", .{ self.pid, self.code, CString.strsignal(@intCast(self.code)) }),
+                .stopped => std.fmt.allocPrint(alloc, "process {d} stopped with signal {d} - \"{s}\"", .{ self.pid, self.code, CString.strsignal(@intCast(self.code)) }),
+            };
+        }
+
+        pub fn to_string_buffer(self: StopReason, buffer: []u8) ![]u8 {
+            var fba = std.heap.FixedBufferAllocator.init(buffer);
+            const alloc = fba.allocator();
+            return to_string(self, alloc);
         }
     };
 
     pub fn wait_on_signal(self: *Self) StopReason {
         const result = posix.waitpid(self.pid, 0);
-        const stop_reason = StopReason.from_status(result.status);
+        const stop_reason = StopReason.from_waitpid_result(result);
 
-        std.log.debug("wait_on_signal: reason = {s}, code = {d}", .{ @tagName(stop_reason.reason), stop_reason.code }); // stringify code?
+        // start debug stuff
+        var buffer: [256]u8 = undefined;
+        const s = stop_reason.to_string_buffer(buffer[0..]) catch |err| {
+            std.log.warn("Failed to convert stop reason to fixed string: {s}\n", .{@errorName(err)});
+            return stop_reason;
+        };
+        std.log.debug("wait_on_signal: {s}", .{s});
+        // end debug stuff
+
         return stop_reason;
     }
 };

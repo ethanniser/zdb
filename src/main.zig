@@ -25,7 +25,7 @@ fn attach(args: [][:0]u8) !Process {
     }
 }
 
-fn handle_command(process: *Process, input: []const u8) !void {
+fn handle_command(allocator: Allocator, process: *Process, input: []const u8) !void {
     assert(input.len != 0);
     var parts = std.mem.splitBackwardsSequence(u8, input, " ");
     const command = parts.first();
@@ -33,27 +33,10 @@ fn handle_command(process: *Process, input: []const u8) !void {
     if (std.mem.startsWith(u8, "continue", command)) {
         try process.resume_execution();
         const reason = process.wait_on_signal();
-        try print_stop_reason(process, reason);
+        try stdout.print("{s}\n", .{try reason.to_string(allocator)});
     } else {
         return error.UnknownCommand;
     }
-}
-
-fn print_stop_reason(process: *Process, reason: Process.StopReason) !void {
-    try stdout.print("Process {d} ", .{process.pid});
-    switch (reason.reason) {
-        .exited => {
-            try stdout.print("exited with status {d}\n", .{reason.code});
-        },
-        .terminated => {
-            try stdout.print("terminated with signal \"{s}\"\n", .{CString.strsignal(@intCast(reason.code))});
-        },
-        .stopped => {
-            try stdout.print("stopped with signal \"{s}\"\n", .{CString.strsignal(@intCast(reason.code))});
-        },
-        else => {},
-    }
-    try stdout.print("\n", .{});
 }
 
 pub fn main_loop(allocator: Allocator, process: *Process, ln: *Linenoise) !void {
@@ -71,7 +54,7 @@ pub fn main_loop(allocator: Allocator, process: *Process, ln: *Linenoise) !void 
         }
 
         if (line.len != 0) {
-            handle_command(process, line) catch |err| {
+            handle_command(allocator, process, line) catch |err| {
                 std.log.err("An error occured: {s}\n", .{@errorName(err)});
             };
         }
