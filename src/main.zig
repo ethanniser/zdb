@@ -7,6 +7,7 @@ const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 const lib = @import("lib.zig");
 const Process = lib.Process;
+const CString = @cImport(@cInclude("string.h"));
 
 const stdout = std.io.getStdOut().writer();
 
@@ -45,10 +46,10 @@ fn print_stop_reason(process: *Process, reason: Process.StopReason) !void {
             try stdout.print("exited with status {d}\n", .{reason.code});
         },
         .terminated => {
-            try stdout.print("terminated with signal {d}\n", .{reason.code}); // todo: find zig sigabbrev_np or sys_siglist
+            try stdout.print("terminated with signal \"{s}\"\n", .{CString.strsignal(@intCast(reason.code))});
         },
         .stopped => {
-            try stdout.print("stopped with signal {d}\n", .{reason.code}); // todo: find zig sigabbrev_np or sys_siglist
+            try stdout.print("stopped with signal \"{s}\"\n", .{CString.strsignal(@intCast(reason.code))});
         },
         else => {},
     }

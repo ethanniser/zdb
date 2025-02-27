@@ -72,6 +72,7 @@ pub const Process = struct {
         }
     }
 
+    // `resume` is a keyword in zig, so we use `resume_execution` instead
     pub fn resume_execution(self: *Self) !void {
         try posix.ptrace(PTRACE.CONT, self.pid, 0, 0);
         self.state = .running;

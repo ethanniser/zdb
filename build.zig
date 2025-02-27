@@ -28,6 +28,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("linenoise", linenoise);
+    exe.linkLibC();
 
     // Create a indetical executable but we **dont** install it
     const exe_check = b.addExecutable(.{
@@ -37,6 +38,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe_check.root_module.addImport("linenoise", linenoise);
+    exe_check.linkLibC();
     const check = b.step("check", "Check if foo compiles");
     check.dependOn(&exe_check.step);
 
