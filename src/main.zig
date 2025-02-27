@@ -88,3 +88,7 @@ pub fn main() !void {
         return err;
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

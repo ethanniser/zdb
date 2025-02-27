@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) void {
     });
     exe_check.root_module.addImport("linenoise", linenoise);
     exe_check.linkLibC();
-    const check = b.step("check", "Check if foo compiles");
+    const check = b.step("check", "Check compilation");
     check.dependOn(&exe_check.step);
 
     // This declares intent for the executable to be installed into the
@@ -78,6 +78,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe_unit_tests.root_module.addImport("linenoise", linenoise);
+    exe_unit_tests.linkLibC();
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

@@ -22,16 +22,30 @@ pub const Process = struct {
         const pid = try posix.fork();
         if (pid == 0) {
             // We're in the child process
-            // Execute debugee
-            try posix.ptrace(PTRACE.TRACEME, 0, 0, 0);
+
+            // * if there are any errors in this section, propogate them back to the parent via exit code
+
+            // setup tracing
+            posix.ptrace(PTRACE.TRACEME, 0, 0, 0) catch |err| {
+                posix.exit(@intCast(@intFromError(err)));
+                unreachable;
+            };
+            // Execute debugee, if this is successful, execution of this program ends here
             const err = posix.execvpeZ(path_ptr, &argv, &envp);
-            // Execution of this program ends here if successful
-            return err;
+            posix.exit(@intCast(@intFromError(err)));
+            unreachable;
         }
 
         std.log.debug("Launched process {d}", .{pid});
         var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
-        _ = process.wait_on_signal();
+        const stop_reason = process.wait_on_signal();
+        // if the process has already exited something has gone wrong that is not from the program executing (we are expecting it to be stopped)
+        // in this case inspect the exit code to reconstruct the error
+        if (stop_reason.reason == .exited) {
+            const err = @errorFromInt(@as(u16, @truncate(stop_reason.code)));
+            std.log.debug("Failed to launch process: {s}", .{@errorName(err)});
+            return err;
+        }
 
         return process;
     }
@@ -139,3 +153,23 @@ pub const Process = struct {
         return stop_reason;
     }
 };
+
+const t = std.testing;
+
+fn process_exists(pid: posix.pid_t) bool {
+    posix.kill(pid, 0) catch {
+        return false;
+    };
+    return true;
+}
+
+test "Process.launch success" {
+    var process = try Process.launch("echo");
+    defer process.deinit();
+
+    try t.expect(process_exists(process.pid));
+}
+
+test "Process.launch no such program" {
+    try t.expectError(error.FileNotFound, Process.launch("fjdsklfdskl"));
+}
