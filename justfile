@@ -1,11 +1,25 @@
+export JSON_URL := "https://ziglang.org/download/index.json"
+export DEST_DIR := "zig-latest"
+export ZIG_PATH := "zig-latest/zig"
+
 run *args:
-    zig build run -- {{ args }}
+    {{ ZIG_PATH }} build run -- {{ args }}
 
 test:
-    zig build test
+    {{ ZIG_PATH }} build test
 
 check:
-    zig build check
+    {{ ZIG_PATH }} build check
 
 fmt:
-    zig fmt .
+    {{ ZIG_PATH }} fmt .
+
+download-latest:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    TARBALL_URL=$(curl -s "$JSON_URL" | jq -r '.master["x86-linux"].tarball')
+    FILENAME=$(basename "$TARBALL_URL")
+    curl -L -o "$FILENAME" "$TARBALL_URL"
+    mkdir -p "$DEST_DIR"
+    tar -xvf "$FILENAME" -C "$DEST_DIR" --strip-components=1
+    rm -f "$FILENAME"
