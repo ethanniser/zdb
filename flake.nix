@@ -1,28 +1,21 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    nvim.url = "github:ethanniser/nvim.nix";
-    nvim.inputs.nixpkgs.follows = "nixpkgs";
   };
-
-  outputs = { nixpkgs, nvim, ... }: let
-    pkgs = import nixpkgs {
-      system = "x86_64-linux";
-      overlays = [nvim.overlays.default];
-    };
+  outputs = {nixpkgs, ...}: let
+    forAllSystems = function:
+      nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed
+      (system: function nixpkgs.legacyPackages.${system});
   in {
-    devShells = {
-      x86_64-linux = {
-        default = pkgs.mkShell {
-          packages = with pkgs; [
-            zig
-            zls
-            just
-            configured-nvim
-          ];
-        };
+    formatter = forAllSystems (pkgs: pkgs.alejandra);
+    devShells = forAllSystems (pkgs: {
+      default = pkgs.mkShell {
+        packages = with pkgs; [
+          zig
+          zls
+          just
+        ];
       };
-    };
+    });
   };
 }
-
