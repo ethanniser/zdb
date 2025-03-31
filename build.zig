@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const linenoise = b.dependency("linenoise", .{
+    const linenoise = b.dependency("linenoize", .{
         .target = target,
         .optimize = optimize,
     }).module("linenoise");

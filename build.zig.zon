@@ -36,9 +36,9 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        .linenoise = .{
-            .url = "git+https://github.com/joachimschmidt557/linenoize#752446d1cafad2bdd58768baa7337a3e9a7d1bf2",
-            .hash = "linenoize-0.1.0-J7HK8OnXAACP-w7_hZWvBIy7xU7ccbeeh0ZfBbZIFgND",
+        .linenoize = .{
+            .url = "git+https://github.com/joachimschmidt557/linenoize#28a194bb24891f1983c15dddb52f9c72eb3416fc",
+            .hash = "linenoize-0.1.0-J7HK8JPZAAAHFce7qwfGIcWqbuI4nc00qOpXArzF-3Pl",
         },
     },
     .paths = .{
