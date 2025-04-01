@@ -41,6 +41,8 @@ pub fn launch(path: [:0]const u8) !Self {
     channel.close_write();
     var buffer: [256]u8 = undefined;
     const len = try channel.read(buffer[0..]);
+    channel.close_read();
+
     if (len > 0) {
         // something is in the channel so there was an error
         const err = utils.bytesToError(buffer[0..2].*); // Take first 2 bytes
@@ -55,7 +57,7 @@ pub fn launch(path: [:0]const u8) !Self {
     return process;
 }
 
-fn send_error_and_exit(channel: *Pipe, err: anyerror) noreturn {
+fn send_error_and_exit(channel: *const Pipe, err: anyerror) noreturn {
     var error_bytes = utils.errorToBytes(err);
     _ = channel.write(&error_bytes) catch |err2| {
         std.log.warn("Failed to send error message: {s}\n", .{@errorName(err2)});
@@ -77,7 +79,7 @@ pub fn attach(pid: posix.pid_t) !Self {
     return process;
 }
 
-pub fn deinit(self: *Self) void {
+pub fn deinit(self: *const Self) void {
     std.log.debug("Deiniting process {d}", .{self.pid});
     if (self.pid != 0) {
         // make sure we are stopped before we detach
@@ -134,7 +136,7 @@ pub const StopReason = struct {
             unreachable; // is this actually unreachable?
         }
     }
-    pub fn to_string(self: StopReason, alloc: Allocator) ![]u8 {
+    pub fn to_string(self: *const StopReason, alloc: Allocator) ![]u8 {
         return try switch (self.reason) {
             .running => std.fmt.allocPrint(alloc, "process {d} is running", .{self.pid}),
             .exited => std.fmt.allocPrint(alloc, "process {d} exited with status {d}", .{ self.pid, self.code }),
@@ -143,14 +145,14 @@ pub const StopReason = struct {
         };
     }
 
-    pub fn to_string_buffer(self: StopReason, buffer: []u8) ![]u8 {
+    pub fn to_string_buffer(self: *const StopReason, buffer: []u8) ![]u8 {
         var fba = std.heap.FixedBufferAllocator.init(buffer);
         const alloc = fba.allocator();
-        return to_string(self, alloc);
+        return self.to_string(alloc);
     }
 };
 
-pub fn wait_on_signal(self: *Self) StopReason {
+pub fn wait_on_signal(self: *const Self) StopReason {
     const result = posix.waitpid(self.pid, 0);
     const stop_reason = StopReason.from_waitpid_result(result);
 
@@ -166,22 +168,28 @@ pub fn wait_on_signal(self: *Self) StopReason {
     return stop_reason;
 }
 
-const t = std.testing;
+const tests = struct {
+    const t = std.testing;
 
-fn process_exists(pid: posix.pid_t) bool {
-    posix.kill(pid, 0) catch {
-        return false;
-    };
-    return true;
-}
+    fn process_exists(pid: posix.pid_t) bool {
+        posix.kill(pid, 0) catch {
+            return false;
+        };
+        return true;
+    }
 
-test "Process.launch success" {
-    var process = try launch("echo");
-    defer process.deinit();
+    fn get_process_status(pid: posix.pid_t) u8 {
+        return pid;
+    }
 
-    try t.expect(process_exists(process.pid));
-}
+    test "Process.launch success" {
+        var process = try launch("echo");
+        defer process.deinit();
 
-test "Process.launch no such program" {
-    try t.expectError(error.FileNotFound, launch("fjdsklfdskl"));
-}
+        try t.expect(process_exists(process.pid));
+    }
+
+    test "Process.launch no such program" {
+        try t.expectError(error.FileNotFound, launch("fjdsklfdskl"));
+    }
+};

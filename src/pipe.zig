@@ -48,14 +48,14 @@ pub fn close_write(self: *Self) void {
     }
 }
 
-pub fn read(self: *Self, buffer: []u8) !usize {
+pub fn read(self: *const Self, buffer: []u8) !usize {
     if (self.read_fd) |fd| {
         return try posix.read(fd, buffer);
     } else {
         return error.ReadFDClosed;
     }
 }
-pub fn write(self: *Self, bytes: []u8) !usize {
+pub fn write(self: *const Self, bytes: []u8) !usize {
     if (self.write_fd) |fd| {
         return try posix.write(fd, bytes);
     } else {
