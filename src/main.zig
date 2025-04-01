@@ -20,7 +20,7 @@ fn attach(args: [][:0]u8) !Process {
     // passing program name
     // TODO: support passing additional arguments
     else if (args.len == 2) {
-        return Process.launch(args[1]);
+        return Process.launch(args[1], .{});
     } else {
         return error.InvalidArguments;
     }

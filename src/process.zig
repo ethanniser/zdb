@@ -15,8 +15,11 @@ const Self = @This();
 pid: posix.pid_t,
 terminate_on_end: bool,
 state: State,
+is_attached: bool,
 
-pub fn launch(path: [:0]const u8) !Self {
+const LaunchOptions = struct { dont_attach: bool = false };
+
+pub fn launch(path: [:0]const u8, options: LaunchOptions) !Self {
     var channel = try Pipe.init(.{ .close_on_exec = true });
     defer channel.deinit();
 
@@ -30,9 +33,11 @@ pub fn launch(path: [:0]const u8) !Self {
 
         channel.close_read();
         // setup tracing
-        posix.ptrace(PTRACE.TRACEME, 0, 0, 0) catch |err| {
-            send_error_and_exit(&channel, err);
-        };
+        if (!options.dont_attach) {
+            posix.ptrace(PTRACE.TRACEME, 0, 0, 0) catch |err| {
+                send_error_and_exit(&channel, err);
+            };
+        }
         // Execute debugee, if this is successful, execution of this program ends here
         const err = posix.execvpeZ(path_ptr, &argv, &envp);
         send_error_and_exit(&channel, err);
@@ -51,8 +56,10 @@ pub fn launch(path: [:0]const u8) !Self {
     }
 
     std.log.debug("Launched process {d}", .{pid});
-    var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped };
-    _ = process.wait_on_signal();
+    var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped, .is_attached = !options.dont_attach };
+    if (process.is_attached) {
+        _ = process.wait_on_signal();
+    }
 
     return process;
 }
@@ -72,7 +79,7 @@ pub fn attach(pid: posix.pid_t) !Self {
     try posix.ptrace(PTRACE.ATTACH, pid, 0, 0);
     // todo: for some reason does not error when process does not exist?
 
-    var process = Self{ .pid = pid, .terminate_on_end = false, .state = .stopped };
+    var process = Self{ .pid = pid, .terminate_on_end = false, .state = .stopped, .is_attached = true };
     _ = process.wait_on_signal();
     std.log.debug("Attached to process {d}", .{pid});
 
@@ -82,24 +89,26 @@ pub fn attach(pid: posix.pid_t) !Self {
 pub fn deinit(self: *const Self) void {
     std.log.debug("Deiniting process {d}", .{self.pid});
     if (self.pid != 0) {
-        // make sure we are stopped before we detach
-        if (self.state == .running) {
-            std.log.debug("Stopping process {d}", .{self.pid});
-            posix.kill(self.pid, posix.SIG.STOP) catch |err| {
-                std.log.warn("Failed to stop process: {s}\n", .{@errorName(err)});
+        if (self.is_attached) {
+            // make sure we are stopped before we detach
+            if (self.state == .running) {
+                std.log.debug("Stopping process {d}", .{self.pid});
+                posix.kill(self.pid, posix.SIG.STOP) catch |err| {
+                    std.log.warn("Failed to stop process: {s}\n", .{@errorName(err)});
+                };
+                _ = posix.waitpid(self.pid, 0);
+            }
+
+            std.log.debug("Detaching from process {d}", .{self.pid});
+            posix.ptrace(PTRACE.DETACH, self.pid, 0, 0) catch |err| {
+                std.log.warn("Failed to detach ptrace: {s}\n", .{@errorName(err)});
             };
-            _ = posix.waitpid(self.pid, 0);
+
+            std.log.debug("Continuing process {d}", .{self.pid});
+            posix.kill(self.pid, posix.SIG.CONT) catch |err| {
+                std.log.warn("Failed to continue process: {s}\n", .{@errorName(err)});
+            };
         }
-
-        std.log.debug("Detaching from process {d}", .{self.pid});
-        posix.ptrace(PTRACE.DETACH, self.pid, 0, 0) catch |err| {
-            std.log.warn("Failed to detach ptrace: {s}\n", .{@errorName(err)});
-        };
-
-        std.log.debug("Continuing process {d}", .{self.pid});
-        posix.kill(self.pid, posix.SIG.CONT) catch |err| {
-            std.log.warn("Failed to continue process: {s}\n", .{@errorName(err)});
-        };
 
         if (self.terminate_on_end) {
             std.log.debug("Killing process {d}", .{self.pid});
@@ -168,28 +177,61 @@ pub fn wait_on_signal(self: *const Self) StopReason {
     return stop_reason;
 }
 
-const tests = struct {
-    const t = std.testing;
+const t = std.testing;
 
-    fn process_exists(pid: posix.pid_t) bool {
-        posix.kill(pid, 0) catch {
-            return false;
-        };
-        return true;
+fn process_exists(pid: posix.pid_t) bool {
+    posix.kill(pid, 0) catch {
+        return false;
+    };
+    return true;
+}
+
+fn get_process_status(alloc: Allocator, pid: posix.pid_t) !u8 {
+    const path = try std.fmt.allocPrint(alloc, "/prod/{d}/stat", .{pid});
+    defer alloc.free(path);
+
+    const file = try std.fs.openFileAbsolute(path, .{});
+    defer file.close();
+
+    var buf_reader = std.io.bufferedReader(file.reader());
+    var reader = buf_reader.reader();
+
+    const maybe_line = try reader.readUntilDelimiterOrEofAlloc(alloc, '\n', 2048);
+
+    // line should look like: 1 (init) S 0 0 0 ...
+    // we want to split on the last ")" and get the character right after it
+
+    if (maybe_line) |line| {
+        defer alloc.free(line);
+        var iter = std.mem.splitBackwardsScalar(u8, line, ')');
+        if (iter.next()) |part| {
+            return part[1];
+        } else {
+            return error.ParsingStatError;
+        }
+    } else {
+        return error.ParsingStatError;
     }
+}
 
-    fn get_process_status(pid: posix.pid_t) u8 {
-        return pid;
-    }
+test "Process.launch success" {
+    var process = try launch("echo", .{});
+    defer process.deinit();
 
-    test "Process.launch success" {
-        var process = try launch("echo");
-        defer process.deinit();
+    try t.expect(process_exists(process.pid));
+}
 
-        try t.expect(process_exists(process.pid));
-    }
+test "Process.launch no such program" {
+    try t.expectError(error.FileNotFound, launch("fjdsklfdskl", .{}));
+}
 
-    test "Process.launch no such program" {
-        try t.expectError(error.FileNotFound, launch("fjdsklfdskl"));
-    }
-};
+test "Process.attach success" {
+    const alloc = t.allocator;
+    const target = try launch("zig-out/bin/run-endlessly", .{ .dont_attach = true });
+    _ = try attach(target.pid);
+    try t.expect(try get_process_status(alloc, target.pid) == 't');
+}
+
+test "Process.attach invalid PID" {
+    try t.expectError(error.InvalidPid, attach(0));
+}
