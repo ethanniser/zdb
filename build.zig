@@ -84,9 +84,27 @@ pub fn build(b: *std.Build) void {
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
+    // isolated "targets" executables for testing
+    const targets_step = b.step("targets", "Build executables in the targets/ directory");
+
+    const run_endlessly_exe = b.addExecutable(.{
+        .name = "run_endlessly",
+        .root_source_file = b.path("targets/run_endlessly.zig"),
+        .target = target,
+        .optimize = optimize, // todo: is this right?
+    });
+    targets_step.dependOn(&run_endlessly_exe.step);
+    b.installArtifact(run_endlessly_exe);
+
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
+
+    // Since installArtifact adds the installation to the default install step,
+    // and the test step doesn't explicitly depend on the install step,
+    // we need to ensure the artifact is installed *before* the tests run.
+    // A simple way is to make the test step depend on the install step.
+    test_step.dependOn(b.getInstallStep());
     test_step.dependOn(&run_exe_unit_tests.step);
 }
