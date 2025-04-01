@@ -18,6 +18,7 @@ state: State,
 
 pub fn launch(path: [:0]const u8) !Self {
     var channel = try Pipe.init(.{ .close_on_exec = true });
+    defer channel.deinit();
 
     const path_ptr: [*:0]const u8 = path.ptr;
     const argv = [_:null]?[*:0]const u8{path_ptr}; // todo: allow passing args
