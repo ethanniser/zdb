@@ -39,8 +39,6 @@ pub fn build(b: *std.Build) void {
     });
     exe_check.root_module.addImport("linenoise", linenoise);
     exe_check.linkLibC();
-    const check = b.step("check", "Check compilation");
-    check.dependOn(&exe_check.step);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -107,4 +105,8 @@ pub fn build(b: *std.Build) void {
     // A simple way is to make the test step depend on the install step.
     test_step.dependOn(b.getInstallStep());
     test_step.dependOn(&run_exe_unit_tests.step);
+
+    const check = b.step("check", "Check compilation");
+    check.dependOn(&exe_check.step);
+    check.dependOn(&exe_unit_tests.step);
 }
