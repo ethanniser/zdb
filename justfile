@@ -12,5 +12,8 @@ check:
 fmt:
     {{ ZIG_PATH }} fmt .
 
+build:
+    {{ ZIG_PATH }} build targets
+
 build-targets:
     {{ ZIG_PATH }} build targets
