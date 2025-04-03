@@ -17,3 +17,6 @@ build:
 
 build-targets:
     {{ ZIG_PATH }} build targets
+
+watch:
+    {{ ZIG_PATH }} build check -fincremental --watch
