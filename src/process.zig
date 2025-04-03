@@ -232,6 +232,21 @@ test "Process.attach success" {
     try t.expect(try get_process_status(alloc, target.pid) == 't');
 }
 
+
 test "Process.attach invalid PID" {
     try t.expectError(error.InvalidPid, attach(0));
+}
+
+test "Process.resume success" {
+    const alloc = t.allocator;
+    const process = try launch("zig-out/bin/run_endlessly", .{});
+    const status = try get_process_status(alloc, process.pid);
+    try t.expect(status == 'S' or status == 'R');
+}
+
+test "Process.resume already terminated" {
+    var process = try launch("zig-out/bin/end_immediately", .{});
+    try process.resume_execution();
+    _ = process.wait_on_signal();
+    try t.expectError(error.InvalidPid, process.resume_execution());
 }

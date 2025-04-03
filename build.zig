@@ -1,9 +1,33 @@
 const std = @import("std");
 
+fn add_extra_target(
+    name: [:0]const u8,
+    b: *std.Build,
+    step: *std.Build.Step,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) !void {
+    var buf: [100]u8 = undefined;
+    const path = try std.fmt.bufPrint(
+        &buf,
+        "targets/{s}.zig",
+        .{name},
+    );
+
+    const run_endlessly_exe = b.addExecutable(.{
+        .name = name,
+        .root_source_file = b.path(path),
+        .target = target,
+        .optimize = optimize,
+    });
+    step.dependOn(&run_endlessly_exe.step);
+    b.installArtifact(run_endlessly_exe);
+}
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
 
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
@@ -85,14 +109,11 @@ pub fn build(b: *std.Build) void {
     // isolated "targets" executables for testing
     const targets_step = b.step("targets", "Build executables in the targets/ directory");
 
-    const run_endlessly_exe = b.addExecutable(.{
-        .name = "run_endlessly",
-        .root_source_file = b.path("targets/run_endlessly.zig"),
-        .target = target,
-        .optimize = optimize, // todo: is this right?
-    });
-    targets_step.dependOn(&run_endlessly_exe.step);
-    b.installArtifact(run_endlessly_exe);
+    // Add additonal targets here:
+
+    // ? should optimize be different?
+    try add_extra_target("end_immediately", b, targets_step, target, optimize);
+    try add_extra_target("run_endlessly", b, targets_step, target, optimize);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
