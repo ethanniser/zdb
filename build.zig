@@ -103,6 +103,7 @@ pub fn build(b: *std.Build) void {
     // and the test step doesn't explicitly depend on the install step,
     // we need to ensure the artifact is installed *before* the tests run.
     // A simple way is to make the test step depend on the install step.
+    test_step.dependOn(targets_step);
     test_step.dependOn(b.getInstallStep());
     test_step.dependOn(&run_exe_unit_tests.step);
 

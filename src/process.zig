@@ -187,7 +187,7 @@ fn process_exists(pid: posix.pid_t) bool {
 }
 
 fn get_process_status(alloc: Allocator, pid: posix.pid_t) !u8 {
-    const path = try std.fmt.allocPrint(alloc, "/prod/{d}/stat", .{pid});
+    const path = try std.fmt.allocPrint(alloc, "/proc/{d}/stat", .{pid});
     defer alloc.free(path);
 
     const file = try std.fs.openFileAbsolute(path, .{});
@@ -227,7 +227,7 @@ test "Process.launch no such program" {
 
 test "Process.attach success" {
     const alloc = t.allocator;
-    const target = try launch("zig-out/bin/run-endlessly", .{ .dont_attach = true });
+    const target = try launch("zig-out/bin/run_endlessly", .{ .dont_attach = true });
     _ = try attach(target.pid);
     try t.expect(try get_process_status(alloc, target.pid) == 't');
 }
