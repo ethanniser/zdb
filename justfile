@@ -1,22 +1,18 @@
-ZIG_PATH := "zig"
-
+build:
+    zig build
+    
 run *args:
-    {{ ZIG_PATH }} build run -- {{ args }}
+    zig build run -- {{ args }}
 
 test:
-    {{ ZIG_PATH }} build test
+    zig build test
 
 check:
-    {{ ZIG_PATH }} build check
+    zig build check
 
 fmt:
-    {{ ZIG_PATH }} fmt .
+    zig fmt .
 
-build:
-    {{ ZIG_PATH }} build targets
-
-build-targets:
-    {{ ZIG_PATH }} build targets
 
 watch:
-    {{ ZIG_PATH }} build check -fincremental --watch
+    zig build check -fincremental --watch
