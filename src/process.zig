@@ -122,6 +122,7 @@ pub fn deinit(self: *const Self) void {
 
 // `resume` is a keyword in zig, so we use `resume_execution` instead
 pub fn resume_execution(self: *Self) !void {
+    std.log.debug("Resuming process {d}", .{self.pid});
     try posix.ptrace(PTRACE.CONT, self.pid, 0, 0);
     self.state = .running;
 }
@@ -232,21 +233,30 @@ test "Process.attach success" {
     try t.expect(try get_process_status(alloc, target.pid) == 't');
 }
 
-
 test "Process.attach invalid PID" {
     try t.expectError(error.InvalidPid, attach(0));
 }
 
 test "Process.resume success" {
     const alloc = t.allocator;
-    const process = try launch("zig-out/bin/run_endlessly", .{});
-    const status = try get_process_status(alloc, process.pid);
-    try t.expect(status == 'S' or status == 'R');
+    {
+        var process = try launch("zig-out/bin/run_endlessly", .{});
+        try process.resume_execution();
+        const status = try get_process_status(alloc, process.pid);
+        try t.expect(status == 'S' or status == 'R');
+    }
+    {
+        const target = try launch("zig-out/bin/run_endlessly", .{ .dont_attach = true });
+        var process = try attach(target.pid);
+        try process.resume_execution();
+        const status = try get_process_status(alloc, process.pid);
+        try t.expect(status == 'S' or status == 'R');
+    }
 }
 
 test "Process.resume already terminated" {
     var process = try launch("zig-out/bin/end_immediately", .{});
     try process.resume_execution();
     _ = process.wait_on_signal();
-    try t.expectError(error.InvalidPid, process.resume_execution());
+    try t.expectError(error.ProcessNotFound, process.resume_execution());
 }

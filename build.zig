@@ -101,6 +101,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    b.installArtifact(exe_unit_tests);
     exe_unit_tests.root_module.addImport("linenoise", linenoise);
     exe_unit_tests.linkLibC();
 
