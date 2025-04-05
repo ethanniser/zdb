@@ -5,7 +5,6 @@ id: Id,
 name: []const u8,
 dwarf_id: ?u32,
 size: usize,
-offset: usize,
 type: Type,
 format: Format,
 
