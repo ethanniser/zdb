@@ -3,8 +3,8 @@ const CSysUser = @cImport(@cInclude("sys/user.h"));
 const Process = @import("./process.zig");
 const RegisterInfo = @import("./register_info.zig");
 
-user: CSysUser.user,
-process: Process,
+data: CSysUser.user,
+process: *Process,
 
 const Value = union(enum) {
     u8: u8,
