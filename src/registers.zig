@@ -1,7 +1,9 @@
-const CUser = @cImport(@cInclude("sys/user.h"));
+const This = @This();
+const CSysUser = @cImport(@cInclude("sys/user.h"));
 const Process = @import("./process.zig");
+const RegisterInfo = @import("./register_info.zig");
 
-user: CUser.user,
+user: CSysUser.user,
 process: Process,
 
 const Value = union(enum) {
@@ -18,30 +20,4 @@ const Value = union(enum) {
     f80: f80, // long double
     byte64: [8]u8,
     byte128: [16]u8,
-};
-
-// comptime const AllRegisters: Info[] = undefined;
-
-const Info = struct {
-    const Type = enum {
-        gpr,
-        sub_gpr,
-        fpr,
-        dr,
-    };
-
-    const Format = enum {
-        uint,
-        double_float,
-        long_double,
-        vector,
-    };
-
-    id: u32,
-    name: []const u8,
-    dwarf_id: i32,
-    size: usize,
-    offset: usize,
-    type_: Type,
-    format: Format,
 };
