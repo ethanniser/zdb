@@ -1,17 +1,17 @@
 const This = @This();
 const std = @import("std");
 
-id: u32,
+id: Id,
 name: []const u8,
-dwarf_id: i32,
+dwarf_id: ?u32,
 size: usize,
 offset: usize,
-type_: Type,
+type: Type,
 format: Format,
 
 const AllRegisters: []This = undefined;
 
-pub fn get_by_id(comptime id: u32) This {
+pub fn get_by_id(comptime id: Id) This {
     comptime {
         for (AllRegisters) |reg| {
             if (reg.id == id) {
@@ -59,3 +59,5 @@ const Format = enum {
     long_double,
     vector,
 };
+
+const Id = enum {};
