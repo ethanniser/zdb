@@ -91,14 +91,14 @@ pub const registerDefinitions = [_]RegisterDefinition{
     .gpr8l("r15b", "r15"),
 
     // FPRs (Control/Status) - Sizes might need verification based on exact struct def
-    .fpr("fcw", 65, @sizeOf(CSysUser.struct_user_fpregs_struct.cwd), "cwd", .uint),
-    .fpr("fsw", 66, @sizeOf(CSysUser.struct_user_fpregs_struct.swd), "swd", .uint),
-    .fpr("ftw", -1, @sizeOf(CSysUser.struct_user_fpregs_struct.ftw), "ftw", .uint), // Often 8-bit tag word
-    .fpr("fop", -1, @sizeOf(CSysUser.struct_user_fpregs_struct.fop), "fop", .uint),
-    .fpr("frip", -1, @sizeOf(CSysUser.struct_user_fpregs_struct.rip), "rip", .uint),
-    .fpr("frdp", -1, @sizeOf(CSysUser.struct_user_fpregs_struct.rdp), "rdp", .uint),
-    .fpr("mxcsr", 64, @sizeOf(CSysUser.struct_user_fpregs_struct.mxcsr), "mxcsr", .uint),
-    .fpr("mxcsrmask", -1, @sizeOf(CSysUser.struct_user_fpregs_struct.mxcr_mask), "mxcr_mask", .uint),
+    .fpr("fcw", 65, @sizeOf(CSysUser.user_fpregs_struct.cwd), "cwd", .uint),
+    .fpr("fsw", 66, @sizeOf(CSysUser.user_fpregs_struct.swd), "swd", .uint),
+    .fpr("ftw", -1, @sizeOf(CSysUser.user_fpregs_struct.ftw), "ftw", .uint), // Often 8-bit tag word
+    .fpr("fop", -1, @sizeOf(CSysUser.user_fpregs_struct.fop), "fop", .uint),
+    .fpr("frip", -1, @sizeOf(CSysUser.user_fpregs_struct.rip), "rip", .uint),
+    .fpr("frdp", -1, @sizeOf(CSysUser.user_fpregs_struct.rdp), "rdp", .uint),
+    .fpr("mxcsr", 64, @sizeOf(CSysUser.user_fpregs_struct.mxcsr), "mxcsr", .uint),
+    .fpr("mxcsrmask", -1, @sizeOf(CSysUser.user_fpregs_struct.mxcr_mask), "mxcr_mask", .uint),
 
     // FPRs (ST/MMX/XMM)
     .fp_st(0),
