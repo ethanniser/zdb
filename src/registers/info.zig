@@ -89,9 +89,8 @@ const AllRegisters: [definitions.len]This = blk: {
             .gpr => |field_name| base_gpr_offset + @offsetOf(CSysUser.user_regs_struct, field_name),
             .sub_gpr => |sub_info| base_gpr_offset + @offsetOf(CSysUser.user_regs_struct, sub_info.super_reg_field) + sub_info.byte_offset,
             .fpr => |fpr_info| switch (fpr_info) {
-                // .st_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "st_space") + fpr_info.field_or_index.index * 16,
-                // .xmm_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "xmm_space") + fpr_info.field_or_index.index * 16,
                 .field => |field_name| base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, field_name),
+                .offset => |offset| base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, offset.base) + offset.offset,
             },
             .dr => |dr_num| base_dr_offset + dr_num * @sizeOf(c_longlong),
         };
@@ -178,15 +177,58 @@ test "gpr 8 low lookup" {
     try std.testing.expectEqual(Format.uint, al_info.format);
 }
 
+fn get_user_fpregs_struct_field(comptime field: []const u8) type {
+    const fpregs_typeinfo = @typeInfo(CSysUser.user_fpregs_struct);
+    for (fpregs_typeinfo.@"struct".fields) |f| {
+        if (std.mem.eql(u8, f.name, field)) {
+            return f.type;
+        }
+    }
+    @compileError(std.fmt.comptimePrint("Field {s} not found in user_fpregs_struct", .{field}));
+}
+
 test "fpr lookup" {
     const fcw_info = comptime getById(.fcw);
     try std.testing.expectEqual(.fcw, fcw_info.id);
     try std.testing.expectEqualStrings("fcw", fcw_info.name);
     try std.testing.expectEqual(@as(?u32, 65), fcw_info.dwarf_id);
-    try std.testing.expectEqual(@as(usize, 2), fcw_info.size);
+    try std.testing.expectEqual(@sizeOf(get_user_fpregs_struct_field("cwd")), fcw_info.size);
     try std.testing.expectEqual(fcw_info.offset, @offsetOf(CSysUser.user, "i387") + @offsetOf(CSysUser.user_fpregs_struct, "cwd"));
     try std.testing.expectEqual(Type.fpr, fcw_info.type);
     try std.testing.expectEqual(Format.uint, fcw_info.format);
+}
+
+test "fp st lookup" {
+    const st1_info = comptime getById(.st1);
+    try std.testing.expectEqual(.st1, st1_info.id);
+    try std.testing.expectEqualStrings("st1", st1_info.name);
+    try std.testing.expectEqual(@as(?u32, 34), st1_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 16), st1_info.size);
+    try std.testing.expectEqual(st1_info.offset, @offsetOf(CSysUser.user, "i387") + @offsetOf(CSysUser.user_fpregs_struct, "st_space") + 16 * 1);
+    try std.testing.expectEqual(Type.fpr, st1_info.type);
+    try std.testing.expectEqual(Format.long_double, st1_info.format);
+}
+
+test "fp mm lookup" {
+    const mm1_info = comptime getById(.mm1);
+    try std.testing.expectEqual(.mm1, mm1_info.id);
+    try std.testing.expectEqualStrings("mm1", mm1_info.name);
+    try std.testing.expectEqual(@as(?u32, 42), mm1_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 8), mm1_info.size);
+    try std.testing.expectEqual(mm1_info.offset, @offsetOf(CSysUser.user, "i387") + @offsetOf(CSysUser.user_fpregs_struct, "st_space") + 16 * 1);
+    try std.testing.expectEqual(Type.fpr, mm1_info.type);
+    try std.testing.expectEqual(Format.vector, mm1_info.format);
+}
+
+test "fp xmm lookup" {
+    const xmm1_info = comptime getById(.xmm1);
+    try std.testing.expectEqual(.xmm1, xmm1_info.id);
+    try std.testing.expectEqualStrings("xmm1", xmm1_info.name);
+    try std.testing.expectEqual(@as(?u32, 18), xmm1_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 16), xmm1_info.size);
+    try std.testing.expectEqual(xmm1_info.offset, @offsetOf(CSysUser.user, "i387") + @offsetOf(CSysUser.user_fpregs_struct, "xmm_space") + 16 * 1);
+    try std.testing.expectEqual(Type.fpr, xmm1_info.type);
+    try std.testing.expectEqual(Format.vector, xmm1_info.format);
 }
 
 test "debug lookup" {

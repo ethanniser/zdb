@@ -101,40 +101,40 @@ pub const registerDefinitions = [_]RegisterDefinition{
     .fpr("mxcsrmask", null, "mxcr_mask"),
 
     // // FPRs (ST/MMX/XMM)
-    // .fp_st(0),
-    // .fp_st(1),
-    // .fp_st(2),
-    // .fp_st(3),
-    // .fp_st(4),
-    // .fp_st(5),
-    // .fp_st(6),
-    // .fp_st(7),
+    .fp_st(0),
+    .fp_st(1),
+    .fp_st(2),
+    .fp_st(3),
+    .fp_st(4),
+    .fp_st(5),
+    .fp_st(6),
+    .fp_st(7),
 
-    // .fp_mm(0),
-    // .fp_mm(1),
-    // .fp_mm(2),
-    // .fp_mm(3),
-    // .fp_mm(4),
-    // .fp_mm(5),
-    // .fp_mm(6),
-    // .fp_mm(7),
+    .fp_mm(0),
+    .fp_mm(1),
+    .fp_mm(2),
+    .fp_mm(3),
+    .fp_mm(4),
+    .fp_mm(5),
+    .fp_mm(6),
+    .fp_mm(7),
 
-    // .fp_xmm(0),
-    // .fp_xmm(1),
-    // .fp_xmm(2),
-    // .fp_xmm(3),
-    // .fp_xmm(4),
-    // .fp_xmm(5),
-    // .fp_xmm(6),
-    // .fp_xmm(7),
-    // .fp_xmm(8),
-    // .fp_xmm(9),
-    // .fp_xmm(10),
-    // .fp_xmm(11),
-    // .fp_xmm(12),
-    // .fp_xmm(13),
-    // .fp_xmm(14),
-    // .fp_xmm(15),
+    .fp_xmm(0),
+    .fp_xmm(1),
+    .fp_xmm(2),
+    .fp_xmm(3),
+    .fp_xmm(4),
+    .fp_xmm(5),
+    .fp_xmm(6),
+    .fp_xmm(7),
+    .fp_xmm(8),
+    .fp_xmm(9),
+    .fp_xmm(10),
+    .fp_xmm(11),
+    .fp_xmm(12),
+    .fp_xmm(13),
+    .fp_xmm(14),
+    .fp_xmm(15),
 
     // // Debug Registers (DR)
     .dr(0),
@@ -178,6 +178,10 @@ pub const RegisterDefinition = struct {
         };
         const FprOffset = union(enum) {
             field: []const u8, // field of user_fpregs_struct
+            offset: struct {
+                base: []const u8,
+                offset: usize,
+            },
         };
     };
 
@@ -249,36 +253,36 @@ pub const RegisterDefinition = struct {
             .reg_format = .uint,
         };
     }
-    // fn fp_st(num: u4) RegisterDefinition {
-    //     return .{
-    //         .name = "st" ++ std.fmt.comptimePrint("{d}", .{num}),
-    //         .dwarf_id = @intCast(33 + num),
-    //         .size = 16, // sizeof long double on x86_64 linux is often 16
-    //         .offset_calc = .{ .fpr = .{ .base = .st_space, .field_or_index = .{ .index = num } } },
-    //         .reg_type = .fpr,
-    //         .reg_format = .long_double,
-    //     };
-    // }
-    // fn fp_mm(num: u4) RegisterDefinition {
-    //     return .{
-    //         .name = "mm" ++ std.fmt.comptimePrint("{d}", .{num}),
-    //         .dwarf_id = @intCast(41 + num),
-    //         .size = 8,
-    //         .offset_calc = .{ .fpr = .{ .base = .st_space, .field_or_index = .{ .index = num } } },
-    //         .reg_type = .fpr,
-    //         .reg_format = .vector, // MMX registers
-    //     };
-    // }
-    // fn fp_xmm(num: u4) RegisterDefinition {
-    //     return .{
-    //         .name = "xmm" ++ std.fmt.comptimePrint("{d}", .{num}),
-    //         .dwarf_id = @intCast(17 + num),
-    //         .size = 16, // XMM registers are 128-bit
-    //         .offset_calc = .{ .fpr = .{ .base = .xmm_space, .field_or_index = .{ .index = num } } },
-    //         .reg_type = .fpr,
-    //         .reg_format = .vector,
-    //     };
-    // }
+    fn fp_st(num: u32) RegisterDefinition {
+        return .{
+            .name = "st" ++ std.fmt.comptimePrint("{d}", .{num}),
+            .dwarf_id = 33 + num,
+            .size = .{ .raw = 16 },
+            .offset_calc = .{ .fpr = .{ .offset = .{ .base = "st_space", .offset = num * 16 } } },
+            .reg_type = .fpr,
+            .reg_format = .long_double,
+        };
+    }
+    fn fp_mm(num: u32) RegisterDefinition {
+        return .{
+            .name = "mm" ++ std.fmt.comptimePrint("{d}", .{num}),
+            .dwarf_id = 41 + num,
+            .size = .{ .raw = 8 },
+            .offset_calc = .{ .fpr = .{ .offset = .{ .base = "st_space", .offset = num * 16 } } },
+            .reg_type = .fpr,
+            .reg_format = .vector,
+        };
+    }
+    fn fp_xmm(num: u32) RegisterDefinition {
+        return .{
+            .name = "xmm" ++ std.fmt.comptimePrint("{d}", .{num}),
+            .dwarf_id = 17 + num,
+            .size = .{ .raw = 16 },
+            .offset_calc = .{ .fpr = .{ .offset = .{ .base = "xmm_space", .offset = num * 16 } } },
+            .reg_type = .fpr,
+            .reg_format = .vector,
+        };
+    }
     fn dr(num: u4) RegisterDefinition {
         return .{
             .name = "dr" ++ std.fmt.comptimePrint("{d}", .{num}),
