@@ -1,7 +1,7 @@
 const This = @This();
 const CSysUser = @cImport(@cInclude("sys/user.h"));
 const Process = @import("./process.zig");
-const RegisterInfo = @import("./register_info.zig");
+const RegisterInfo = @import("./registers/info.zig");
 
 data: CSysUser.user,
 process: *Process,

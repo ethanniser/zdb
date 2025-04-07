@@ -8,6 +8,7 @@ const assert = std.debug.assert;
 const lib = @import("lib.zig");
 const Process = lib.Process;
 const CString = @cImport(@cInclude("string.h"));
+const _ = @import("registers/info.zig");
 
 const stdout = std.io.getStdOut().writer();
 
