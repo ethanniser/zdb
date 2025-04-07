@@ -1,6 +1,7 @@
 const This = @This();
 const CSysUser = @cImport(@cInclude("sys/user.h"));
 const Process = @import("./process.zig");
+const std = @import("std");
 const RegisterInfo = @import("./registers/info.zig");
 const Bit = @import("./bit.zig");
 
@@ -36,22 +37,101 @@ pub fn read(self: *const This, info: RegisterInfo) !Value {
     }
 }
 
-pub fn write(self: *const This, reg: RegisterInfo, value: Value) void {
-    @compileError("not implemented");
+pub fn write(self: *const This, reg: RegisterInfo, value: Value) !void {
+    if (value.sizeOf() != reg.size) {
+        return error.UnexpectedSize;
+    }
+
+    if (reg.format == .uint) {
+        var data_bytes = Bit.asBytes(&self.data);
+        const value_bytes = Bit.asBytes(value);
+        std.mem.copyForwards(u8, data_bytes[reg.offset..], value_bytes);
+    }
 }
 
-pub fn readByIdAs(self: *const This, id: RegisterInfo.Id, comptime T: type) T {
-    @compileError("not implemented");
+pub fn readByIdAs(self: *const This, comptime id: RegisterInfo.Id, comptime T: type) !T {
+    const result = try self.read(RegisterInfo.getById(id));
+    return switch (T) {
+        u8 => switch (result) {
+            .u8 => |v| v,
+            else => error.TypeMismatch,
+        },
+        i8 => switch (result) {
+            .i8 => |v| v,
+            else => error.TypeMismatch,
+        },
+        u16 => switch (result) {
+            .u16 => |v| v,
+            else => error.TypeMismatch,
+        },
+        i16 => switch (result) {
+            .i16 => |v| v,
+            else => error.TypeMismatch,
+        },
+        u32 => switch (result) {
+            .u32 => |v| v,
+            else => error.TypeMismatch,
+        },
+        i32 => switch (result) {
+            .i32 => |v| v,
+            else => error.TypeMismatch,
+        },
+        u64 => switch (result) {
+            .u64 => |v| v,
+            else => error.TypeMismatch,
+        },
+        i64 => switch (result) {
+            .i64 => |v| v,
+            else => error.TypeMismatch,
+        },
+        f32 => switch (result) {
+            .f32 => |v| v,
+            else => error.TypeMismatch,
+        },
+        f64 => switch (result) {
+            .f64 => |v| v,
+            else => error.TypeMismatch,
+        },
+        f80 => switch (result) {
+            .f80 => |v| v,
+            else => error.TypeMismatch,
+        },
+        byte64 => switch (result) {
+            .byte64 => |v| v,
+            else => error.TypeMismatch,
+        },
+        byte128 => switch (result) {
+            .byte128 => |v| v,
+            else => error.TypeMismatch,
+        },
+        else => error.UnsupportedType,
+    };
 }
 
-pub fn writeById(self: *const This, id: RegisterInfo.Id, value: Value) void {
-    @compileError("not implemented");
+pub fn writeById(self: *const This, comptime id: RegisterInfo.Id, value: Value) !void {
+    return self.write(RegisterInfo.getById(id), value);
 }
 
 pub const byte64 = [8]u8;
 pub const byte128 = [16]u8;
 
-pub const Value = union(enum) {
+pub const ValueType = enum {
+    u8,
+    i8,
+    u16,
+    i16,
+    u32,
+    i32,
+    u64,
+    i64,
+    f32,
+    f64,
+    f80,
+    byte64,
+    byte128,
+};
+
+pub const Value = union(ValueType) {
     u8: u8,
     i8: i8,
     u16: u16,
@@ -65,4 +145,22 @@ pub const Value = union(enum) {
     f80: f80, // long double
     byte64: byte64,
     byte128: byte128,
+
+    pub fn sizeOf(self: Value) u8 {
+        return switch (self) {
+            .u8 => @sizeOf(u8),
+            .i8 => @sizeOf(i8),
+            .u16 => @sizeOf(u16),
+            .i16 => @sizeOf(i16),
+            .u32 => @sizeOf(u32),
+            .i32 => @sizeOf(i32),
+            .u64 => @sizeOf(u64),
+            .i64 => @sizeOf(i64),
+            .f32 => @sizeOf(f32),
+            .f64 => @sizeOf(f64),
+            .f80 => @sizeOf(f80),
+            .byte64 => @sizeOf(byte64),
+            .byte128 => @sizeOf(byte128),
+        };
+    }
 };
