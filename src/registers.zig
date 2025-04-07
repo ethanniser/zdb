@@ -37,16 +37,18 @@ pub fn read(self: *const This, info: RegisterInfo) !Value {
     }
 }
 
-pub fn write(self: *const This, reg: RegisterInfo, value: Value) !void {
-    if (value.sizeOf() != reg.size) {
+pub fn write(self: *const This, info: RegisterInfo, value: Value) !void {
+    if (value.sizeOf() != info.size) {
         return error.UnexpectedSize;
     }
 
-    if (reg.format == .uint) {
-        var data_bytes = Bit.asBytes(&self.data);
+    var data_bytes = Bit.asBytes(&self.data);
+    if (info.format == .uint) {
         const value_bytes = Bit.asBytes(value);
-        std.mem.copyForwards(u8, data_bytes[reg.offset..], value_bytes);
+        std.mem.copyForwards(u8, data_bytes[info.offset..], value_bytes);
     }
+
+    self.process.write_user_area(info.offset, Bit.fromBytes(u64, data_bytes[info.offset..]));
 }
 
 pub fn readByIdAs(self: *const This, comptime id: RegisterInfo.Id, comptime T: type) !T {

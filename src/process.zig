@@ -9,6 +9,7 @@ const CString = @cImport(@cInclude("string.h"));
 const Pipe = @import("./pipe.zig");
 const utils = @import("./utils.zig");
 const Registers = @import("./registers.zig");
+const RegisterInfo = @import("./registers/info.zig");
 const Self = @This();
 
 pub const State = enum { stopped, running, exited, terminated };
@@ -221,6 +222,29 @@ fn get_process_status(alloc: Allocator, pid: posix.pid_t) !u8 {
         }
     } else {
         return error.ParsingStatError;
+    }
+}
+
+pub fn get_registers(self: *const Self) Registers {}
+pub fn write_user_area(self: *const Self, offset: usize, data: u64) !void {
+    try std.posix.ptrace(PTRACE.POKEUSER, self.pid, offset, data);
+}
+fn read_all_registers(self: *const Self) !void {
+    try std.posix.ptrace(PTRACE.GETREGS, self.pid, 0, &self.get_registers().data.regs);
+    try std.posix.ptrace(PTRACE.GETFPREGS, self.pid, 0, &self.get_registers().data.i387);
+
+    for (0..8) |i| {
+        const info = RegisterInfo.getById(.dr0 + i);
+        // I guess the posix version doesnt make it possible to read the return value
+        // even though for PEEKUSER the return value isnt just the error code
+        const data = std.os.linux.ptrace(PTRACE.PEEKUSER, self.pid, info.offset, 0, 0);
+        if (std.c._errno) |val| {
+            if (val != 0) {
+                std.log.err("Failed to read register {s}: {s}", .{ info.name, std.os.strerror(val) });
+                return error.ReadRegisterError;
+            }
+        }
+        self.get_registers().data.u_debugreg[i] = data;
     }
 }
 
