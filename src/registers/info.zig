@@ -132,6 +132,39 @@ test "gpr 32 lookup" {
     try std.testing.expectEqual(Format.uint, eax_info.format);
 }
 
+test "gpr 16 lookup" {
+    const ax_info = comptime getById(.ax);
+    try std.testing.expectEqual(.ax, ax_info.id);
+    try std.testing.expectEqualStrings("ax", ax_info.name);
+    try std.testing.expectEqual(@as(?u32, null), ax_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 2), ax_info.size);
+    try std.testing.expectEqual(ax_info.offset, @offsetOf(CSysUser.user, "regs") + @offsetOf(CSysUser.user_regs_struct, "rax"));
+    try std.testing.expectEqual(Type.sub_gpr, ax_info.type);
+    try std.testing.expectEqual(Format.uint, ax_info.format);
+}
+
+test "gpr 8 high lookup" {
+    const ah_info = comptime getById(.ah);
+    try std.testing.expectEqual(.ah, ah_info.id);
+    try std.testing.expectEqualStrings("ah", ah_info.name);
+    try std.testing.expectEqual(@as(?u32, null), ah_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 1), ah_info.size);
+    try std.testing.expectEqual(ah_info.offset, @offsetOf(CSysUser.user, "regs") + @offsetOf(CSysUser.user_regs_struct, "rax") + 1);
+    try std.testing.expectEqual(Type.sub_gpr, ah_info.type);
+    try std.testing.expectEqual(Format.uint, ah_info.format);
+}
+
+test "gpr 8 low lookup" {
+    const al_info = comptime getById(.al);
+    try std.testing.expectEqual(.al, al_info.id);
+    try std.testing.expectEqualStrings("al", al_info.name);
+    try std.testing.expectEqual(@as(?u32, null), al_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 1), al_info.size);
+    try std.testing.expectEqual(al_info.offset, @offsetOf(CSysUser.user, "regs") + @offsetOf(CSysUser.user_regs_struct, "rax"));
+    try std.testing.expectEqual(Type.sub_gpr, al_info.type);
+    try std.testing.expectEqual(Format.uint, al_info.format);
+}
+
 // const al_info = getByName("al") orelse unreachable;
 // try std.testing.expectEqual(Id.al, al_info.id);
 // try std.testing.expectEqual(@as(usize, 1), al_info.size);

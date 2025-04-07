@@ -48,47 +48,47 @@ pub const registerDefinitions = [_]RegisterDefinition{
     .gpr_32("r14d", "r14"),
     .gpr_32("r15d", "r15"),
 
-    // // GPRs (16-bit)
-    // .gpr_16("ax", "rax"),
-    // .gpr_16("dx", "rdx"),
-    // .gpr_16("cx", "rcx"),
-    // .gpr_16("bx", "rbx"),
-    // .gpr_16("si", "rsi"),
-    // .gpr_16("di", "rdi"),
-    // .gpr_16("bp", "rbp"),
-    // .gpr_16("sp", "rsp"),
-    // .gpr_16("r8w", "r8"),
-    // .gpr_16("r9w", "r9"),
-    // .gpr_16("r10w", "r10"),
-    // .gpr_16("r11w", "r11"),
-    // .gpr_16("r12w", "r12"),
-    // .gpr_16("r13w", "r13"),
-    // .gpr_16("r14w", "r14"),
-    // .gpr_16("r15w", "r15"),
+    // GPRs (16-bit)
+    .gpr_16("ax", "rax"),
+    .gpr_16("dx", "rdx"),
+    .gpr_16("cx", "rcx"),
+    .gpr_16("bx", "rbx"),
+    .gpr_16("si", "rsi"),
+    .gpr_16("di", "rdi"),
+    .gpr_16("bp", "rbp"),
+    .gpr_16("sp", "rsp"),
+    .gpr_16("r8w", "r8"),
+    .gpr_16("r9w", "r9"),
+    .gpr_16("r10w", "r10"),
+    .gpr_16("r11w", "r11"),
+    .gpr_16("r12w", "r12"),
+    .gpr_16("r13w", "r13"),
+    .gpr_16("r14w", "r14"),
+    .gpr_16("r15w", "r15"),
 
-    // // GPRs (8-bit High)
-    // .gpr_8h("ah", "rax"),
-    // .gpr_8h("dh", "rdx"),
-    // .gpr_8h("ch", "rcx"),
-    // .gpr_8h("bh", "rbx"),
+    // GPRs (8-bit High)
+    .gpr_8h("ah", "rax"),
+    .gpr_8h("dh", "rdx"),
+    .gpr_8h("ch", "rcx"),
+    .gpr_8h("bh", "rbx"),
 
-    // // GPRs (8-bit Low)
-    // .gpr_8l("al", "rax"),
-    // .gpr_8l("dl", "rdx"),
-    // .gpr_8l("cl", "rcx"),
-    // .gpr_8l("bl", "rbx"),
-    // .gpr_8l("sil", "rsi"),
-    // .gpr_8l("dil", "rdi"),
-    // .gpr_8l("bpl", "rbp"),
-    // .gpr_8l("spl", "rsp"),
-    // .gpr_8l("r8b", "r8"),
-    // .gpr_8l("r9b", "r9"),
-    // .gpr_8l("r10b", "r10"),
-    // .gpr_8l("r11b", "r11"),
-    // .gpr_8l("r12b", "r12"),
-    // .gpr_8l("r13b", "r13"),
-    // .gpr_8l("r14b", "r14"),
-    // .gpr_8l("r15b", "r15"),
+    // GPRs (8-bit Low)
+    .gpr_8l("al", "rax"),
+    .gpr_8l("dl", "rdx"),
+    .gpr_8l("cl", "rcx"),
+    .gpr_8l("bl", "rbx"),
+    .gpr_8l("sil", "rsi"),
+    .gpr_8l("dil", "rdi"),
+    .gpr_8l("bpl", "rbp"),
+    .gpr_8l("spl", "rsp"),
+    .gpr_8l("r8b", "r8"),
+    .gpr_8l("r9b", "r9"),
+    .gpr_8l("r10b", "r10"),
+    .gpr_8l("r11b", "r11"),
+    .gpr_8l("r12b", "r12"),
+    .gpr_8l("r13b", "r13"),
+    .gpr_8l("r14b", "r14"),
+    .gpr_8l("r15b", "r15"),
 
     // // FPRs (Control/Status)
     // .fpr("fcw", 65, .uint),
@@ -203,36 +203,36 @@ pub const RegisterDefinition = struct {
             .reg_format = .uint,
         };
     }
-    // fn gpr16(name: []const u8, super_field: []const u8) RegisterDefinition {
-    //     return .{
-    //         .name = name,
-    //         .dwarf_id = -1,
-    //         .size = 2,
-    //         .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } },
-    //         .reg_type = .sub_gpr,
-    //         .reg_format = .uint,
-    //     };
-    // }
-    // fn gpr8h(name: []const u8, super_field: []const u8) RegisterDefinition {
-    //     return .{
-    //         .name = name,
-    //         .dwarf_id = -1,
-    //         .size = 1,
-    //         .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field, .byte_offset = 1 } },
-    //         .reg_type = .sub_gpr,
-    //         .reg_format = .uint,
-    //     };
-    // }
-    // fn gpr8l(name: []const u8, super_field: []const u8) RegisterDefinition {
-    //     return .{
-    //         .name = name,
-    //         .dwarf_id = -1,
-    //         .size = 1,
-    //         .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } }, // byte_offset = 0 default
-    //         .reg_type = .sub_gpr,
-    //         .reg_format = .uint,
-    //     };
-    // }
+    fn gpr_16(name: []const u8, super_field: []const u8) RegisterDefinition {
+        return .{
+            .name = name,
+            .dwarf_id = null,
+            .size = 2,
+            .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } },
+            .reg_type = .sub_gpr,
+            .reg_format = .uint,
+        };
+    }
+    fn gpr_8h(name: []const u8, super_field: []const u8) RegisterDefinition {
+        return .{
+            .name = name,
+            .dwarf_id = null,
+            .size = 1,
+            .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field, .byte_offset = 1 } },
+            .reg_type = .sub_gpr,
+            .reg_format = .uint,
+        };
+    }
+    fn gpr_8l(name: []const u8, super_field: []const u8) RegisterDefinition {
+        return .{
+            .name = name,
+            .dwarf_id = null,
+            .size = 1,
+            .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } }, // byte_offset = 0 default
+            .reg_type = .sub_gpr,
+            .reg_format = .uint,
+        };
+    }
     // fn fpr(name: []const u8, dwarf: i32, size: usize, field: []const u8, format: RegisterFormat) RegisterDefinition {
     //     return .{
     //         .name = name,
