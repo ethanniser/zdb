@@ -87,7 +87,7 @@ const AllRegisters: [definitions.len]This = blk: {
     for (definitions, 0..) |def, i| {
         const final_offset = switch (def.offset_calc) {
             .gpr => |field_name| base_gpr_offset + @offsetOf(CSysUser.user_regs_struct, field_name),
-            // .sub_gpr => |sub_info| base_gpr_offset + @offsetOf(CSysUser.user_regs_struct, sub_info.super_reg_field) + sub_info.byte_offset,
+            .sub_gpr => |sub_info| base_gpr_offset + @offsetOf(CSysUser.user_regs_struct, sub_info.super_reg_field) + sub_info.byte_offset,
             // .fpr => |fpr_info| switch (fpr_info.base) {
             //     .st_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "st_space") + fpr_info.field_or_index.index * 16,
             //     .xmm_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "xmm_space") + fpr_info.field_or_index.index * 16,
@@ -110,7 +110,7 @@ const AllRegisters: [definitions.len]This = blk: {
     break :blk infos;
 };
 
-test "lookup registers" {
+test "gpr 64 lookup" {
     const rax_info = comptime getById(.rax);
     try std.testing.expectEqual(.rax, rax_info.id);
     try std.testing.expectEqualStrings("rax", rax_info.name);
@@ -119,33 +119,44 @@ test "lookup registers" {
     try std.testing.expectEqual(rax_info.offset, @offsetOf(CSysUser.user, "regs") + @offsetOf(CSysUser.user_regs_struct, "rax"));
     try std.testing.expectEqual(Type.gpr, rax_info.type);
     try std.testing.expectEqual(Format.uint, rax_info.format);
-
-    // const al_info = getByName("al") orelse unreachable;
-    // try std.testing.expectEqual(Id.al, al_info.id);
-    // try std.testing.expectEqual(@as(usize, 1), al_info.size);
-    // try std.testing.expectEqual(@as(i32, -1), al_info.dwarf_id);
-    // try std.testing.expectEqual(Type.sub_gpr, al_info.type);
-    // // Check offset relative to rax
-    // try std.testing.expectEqual(rax_info.offset, al_info.offset);
-
-    // const ah_info = getByName("ah") orelse unreachable;
-    // try std.testing.expectEqual(Id.ah, ah_info.id);
-    // try std.testing.expectEqual(@as(usize, 1), ah_info.size);
-    // // Check offset relative to rax
-    // try std.testing.expectEqual(rax_info.offset + 1, ah_info.offset);
-
-    // const st0_info = getByDwarf(33) orelse unreachable; // ST0 has dwarf_id 33
-    // try std.testing.expectEqualStrings("st0", st0_info.name);
-    // try std.testing.expectEqual(Id.st0, st0_info.id);
-    // try std.testing.expectEqual(@as(usize, 16), st0_info.size);
-    // try std.testing.expectEqual(Format.long_double, st0_info.format);
-
-    // const xmm3_info = getById(.xmm3);
-    // try std.testing.expectEqualStrings("xmm3", xmm3_info.name);
-    // try std.testing.expectEqual(@as(i32, 17 + 3), xmm3_info.dwarf_id);
-
-    // // Test non-existent lookup
-    // try std.testing.expect(getByName("nonexistent") == null);
-    // try std.testing.expect(getByDwarf(9999) == null);
-    // try std.testing.expect(getByDwarf(-5) == null);
 }
+
+test "gpr 32 lookup" {
+    const eax_info = comptime getById(.eax);
+    try std.testing.expectEqual(.eax, eax_info.id);
+    try std.testing.expectEqualStrings("eax", eax_info.name);
+    try std.testing.expectEqual(@as(?u32, null), eax_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 4), eax_info.size);
+    try std.testing.expectEqual(eax_info.offset, @offsetOf(CSysUser.user, "regs") + @offsetOf(CSysUser.user_regs_struct, "rax"));
+    try std.testing.expectEqual(Type.sub_gpr, eax_info.type);
+    try std.testing.expectEqual(Format.uint, eax_info.format);
+}
+
+// const al_info = getByName("al") orelse unreachable;
+// try std.testing.expectEqual(Id.al, al_info.id);
+// try std.testing.expectEqual(@as(usize, 1), al_info.size);
+// try std.testing.expectEqual(@as(i32, -1), al_info.dwarf_id);
+// try std.testing.expectEqual(Type.sub_gpr, al_info.type);
+// // Check offset relative to rax
+// try std.testing.expectEqual(rax_info.offset, al_info.offset);
+
+// const ah_info = getByName("ah") orelse unreachable;
+// try std.testing.expectEqual(Id.ah, ah_info.id);
+// try std.testing.expectEqual(@as(usize, 1), ah_info.size);
+// // Check offset relative to rax
+// try std.testing.expectEqual(rax_info.offset + 1, ah_info.offset);
+
+// const st0_info = getByDwarf(33) orelse unreachable; // ST0 has dwarf_id 33
+// try std.testing.expectEqualStrings("st0", st0_info.name);
+// try std.testing.expectEqual(Id.st0, st0_info.id);
+// try std.testing.expectEqual(@as(usize, 16), st0_info.size);
+// try std.testing.expectEqual(Format.long_double, st0_info.format);
+
+// const xmm3_info = getById(.xmm3);
+// try std.testing.expectEqualStrings("xmm3", xmm3_info.name);
+// try std.testing.expectEqual(@as(i32, 17 + 3), xmm3_info.dwarf_id);
+
+// // Test non-existent lookup
+// try std.testing.expect(getByName("nonexistent") == null);
+// try std.testing.expect(getByDwarf(9999) == null);
+// try std.testing.expect(getByDwarf(-5) == null);

@@ -31,22 +31,22 @@ pub const registerDefinitions = [_]RegisterDefinition{
     .gpr_64("orig_rax", null),
 
     // // GPRs (32-bit)
-    // .gpr_32("eax", "rax"),
-    // .gpr_32("edx", "rdx"),
-    // .gpr_32("ecx", "rcx"),
-    // .gpr_32("ebx", "rbx"),
-    // .gpr_32("esi", "rsi"),
-    // .gpr_32("edi", "rdi"),
-    // .gpr_32("ebp", "rbp"),
-    // .gpr_32("esp", "rsp"),
-    // .gpr_32("r8d", "r8"),
-    // .gpr_32("r9d", "r9"),
-    // .gpr_32("r10d", "r10"),
-    // .gpr_32("r11d", "r11"),
-    // .gpr_32("r12d", "r12"),
-    // .gpr_32("r13d", "r13"),
-    // .gpr_32("r14d", "r14"),
-    // .gpr_32("r15d", "r15"),
+    .gpr_32("eax", "rax"),
+    .gpr_32("edx", "rdx"),
+    .gpr_32("ecx", "rcx"),
+    .gpr_32("ebx", "rbx"),
+    .gpr_32("esi", "rsi"),
+    .gpr_32("edi", "rdi"),
+    .gpr_32("ebp", "rbp"),
+    .gpr_32("esp", "rsp"),
+    .gpr_32("r8d", "r8"),
+    .gpr_32("r9d", "r9"),
+    .gpr_32("r10d", "r10"),
+    .gpr_32("r11d", "r11"),
+    .gpr_32("r12d", "r12"),
+    .gpr_32("r13d", "r13"),
+    .gpr_32("r14d", "r14"),
+    .gpr_32("r15d", "r15"),
 
     // // GPRs (16-bit)
     // .gpr_16("ax", "rax"),
@@ -162,14 +162,14 @@ pub const RegisterDefinition = struct {
     // Enum to describe how to calculate the offset
     const OffsetCalculation = union(enum) {
         gpr: []const u8, // Field name within user_regs_struct
-        // sub_gpr: SubGprOffset,
+        sub_gpr: SubGprOffset,
         // fpr: FprOffset,
         // dr: u4, // Debug register number (0-7)
 
-        // const SubGprOffset = struct {
-        //     super_reg_field: []const u8, // Field name of the 64-bit super register
-        //     byte_offset: u1 = 0, // 0 for low part, 1 for high byte (AH, etc.)
-        // };
+        const SubGprOffset = struct {
+            super_reg_field: []const u8, // Field name of the 64-bit super register
+            byte_offset: usize = 0, // 0 for low part, 1 for high byte (AH, etc.)
+        };
         // const FprOffset = struct {
         //     base: enum { st_space, xmm_space, other },
         //     field_or_index: union(enum) {
@@ -193,16 +193,16 @@ pub const RegisterDefinition = struct {
             .reg_format = .uint,
         };
     }
-    // fn gpr32(name: []const u8, super_field: []const u8) RegisterDefinition {
-    //     return .{
-    //         .name = name,
-    //         .dwarf_id = -1,
-    //         .size = 4,
-    //         .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } },
-    //         .reg_type = .sub_gpr,
-    //         .reg_format = .uint,
-    //     };
-    // }
+    fn gpr_32(name: []const u8, super_field: []const u8) RegisterDefinition {
+        return .{
+            .name = name,
+            .dwarf_id = null,
+            .size = 4,
+            .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } },
+            .reg_type = .sub_gpr,
+            .reg_format = .uint,
+        };
+    }
     // fn gpr16(name: []const u8, super_field: []const u8) RegisterDefinition {
     //     return .{
     //         .name = name,
