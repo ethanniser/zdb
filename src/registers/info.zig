@@ -52,7 +52,7 @@ pub const Type = enum {
 
 pub const Format = enum {
     uint,
-    double_float,
+    double_float, // included in the book but never used in the definition of any register..?
     long_double,
     vector,
 };

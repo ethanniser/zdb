@@ -8,14 +8,16 @@ const assert = std.debug.assert;
 const CString = @cImport(@cInclude("string.h"));
 const Pipe = @import("./pipe.zig");
 const utils = @import("./utils.zig");
+const Registers = @import("./registers.zig");
+const Self = @This();
 
 pub const State = enum { stopped, running, exited, terminated };
 
-const Self = @This();
 pid: posix.pid_t,
 terminate_on_end: bool,
 state: State,
 is_attached: bool,
+register: Registers,
 
 const LaunchOptions = struct { dont_attach: bool = false };
 
@@ -56,7 +58,13 @@ pub fn launch(path: [:0]const u8, options: LaunchOptions) !Self {
     }
 
     std.log.debug("Launched process {d}", .{pid});
-    var process = Self{ .pid = pid, .terminate_on_end = true, .state = .stopped, .is_attached = !options.dont_attach };
+    var process = Self{
+        .pid = pid,
+        .terminate_on_end = true,
+        .state = .stopped,
+        .is_attached = !options.dont_attach,
+    };
+    process.register = Registers.init(&process); // I kinda hate this
     if (process.is_attached) {
         _ = process.wait_on_signal();
     }
@@ -80,6 +88,7 @@ pub fn attach(pid: posix.pid_t) !Self {
     // todo: for some reason does not error when process does not exist?
 
     var process = Self{ .pid = pid, .terminate_on_end = false, .state = .stopped, .is_attached = true };
+    process.register = Registers.init(&process); // I kinda hate this
     _ = process.wait_on_signal();
     std.log.debug("Attached to process {d}", .{pid});
 
