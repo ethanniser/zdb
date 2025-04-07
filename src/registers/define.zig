@@ -90,14 +90,15 @@ pub const registerDefinitions = [_]RegisterDefinition{
     .gpr_8l("r14b", "r14"),
     .gpr_8l("r15b", "r15"),
 
-    // // FPRs (Control/Status)
-    // .fpr("fcw", 65, .uint),
-    // .fpr("fsw", 66, .uint),
-    // .fpr("ftw", null, .uint),
-    // .fpr("frip", null, .uint),
-    // .fpr("frdp", null, .uint),
-    // .fpr("mxcsr", 64, .uint),
-    // .fpr("mxcsrmask", null, .uint),
+    // FPRs (Control/Status)
+    .fpr("fcw", 65, "cwd"),
+    .fpr("fsw", 66, "swd"),
+    .fpr("ftw", null, "ftw"),
+    .fpr("fop", null, "fop"),
+    .fpr("frip", null, "rip"),
+    .fpr("frdp", null, "rdp"),
+    .fpr("mxcsr", 64, "mxcsr"),
+    .fpr("mxcsrmask", null, "mxcr_mask"),
 
     // // FPRs (ST/MMX/XMM)
     // .fp_st(0),
@@ -136,14 +137,14 @@ pub const registerDefinitions = [_]RegisterDefinition{
     // .fp_xmm(15),
 
     // // Debug Registers (DR)
-    // .dr(0),
-    // .dr(1),
-    // .dr(2),
-    // .dr(3),
-    // .dr(4),
-    // .dr(5),
-    // .dr(6),
-    // .dr(7),
+    .dr(0),
+    .dr(1),
+    .dr(2),
+    .dr(3),
+    .dr(4),
+    .dr(5),
+    .dr(6),
+    .dr(7),
 };
 
 const RegisterInfo = @import("./info.zig");
@@ -154,29 +155,30 @@ const RegisterFormat = RegisterInfo.Format;
 pub const RegisterDefinition = struct {
     name: []const u8,
     dwarf_id: ?u32,
-    size: usize,
+    size: SizeCalculation,
     offset_calc: OffsetCalculation,
     reg_type: RegisterType,
     reg_format: RegisterFormat,
+
+    const SizeCalculation = union(enum) {
+        raw: usize,
+        fp_reg: []const u8,
+    };
 
     // Enum to describe how to calculate the offset
     const OffsetCalculation = union(enum) {
         gpr: []const u8, // Field name within user_regs_struct
         sub_gpr: SubGprOffset,
-        // fpr: FprOffset,
-        // dr: u4, // Debug register number (0-7)
+        fpr: FprOffset,
+        dr: usize, // Debug register number (0-7) - index into user._u_debugreg
 
         const SubGprOffset = struct {
             super_reg_field: []const u8, // Field name of the 64-bit super register
             byte_offset: usize = 0, // 0 for low part, 1 for high byte (AH, etc.)
         };
-        // const FprOffset = struct {
-        //     base: enum { st_space, xmm_space, other },
-        //     field_or_index: union(enum) {
-        //         field_name: []const u8, // e.g., "cwd", "swd"
-        //         index: u4, // e.g., 0-7 for st/mm, 0-15 for xmm
-        //     },
-        // };
+        const FprOffset = union(enum) {
+            field: []const u8, // field of user_fpregs_struct
+        };
     };
 
     // Helper functions to create definitions
@@ -187,8 +189,8 @@ pub const RegisterDefinition = struct {
         return .{
             .name = name,
             .dwarf_id = dwarf,
-            .size = 8,
-            .offset_calc = .{ .gpr = name }, // name *should* be the same as the field name in user_regs_struct
+            .size = .{ .raw = 8 },
+            .offset_calc = .{ .gpr = name },
             .reg_type = .gpr,
             .reg_format = .uint,
         };
@@ -197,7 +199,7 @@ pub const RegisterDefinition = struct {
         return .{
             .name = name,
             .dwarf_id = null,
-            .size = 4,
+            .size = .{ .raw = 4 },
             .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } },
             .reg_type = .sub_gpr,
             .reg_format = .uint,
@@ -207,7 +209,7 @@ pub const RegisterDefinition = struct {
         return .{
             .name = name,
             .dwarf_id = null,
-            .size = 2,
+            .size = .{ .raw = 2 },
             .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } },
             .reg_type = .sub_gpr,
             .reg_format = .uint,
@@ -217,7 +219,7 @@ pub const RegisterDefinition = struct {
         return .{
             .name = name,
             .dwarf_id = null,
-            .size = 1,
+            .size = .{ .raw = 1 },
             .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field, .byte_offset = 1 } },
             .reg_type = .sub_gpr,
             .reg_format = .uint,
@@ -227,22 +229,26 @@ pub const RegisterDefinition = struct {
         return .{
             .name = name,
             .dwarf_id = null,
-            .size = 1,
+            .size = .{ .raw = 1 },
             .offset_calc = .{ .sub_gpr = .{ .super_reg_field = super_field } }, // byte_offset = 0 default
             .reg_type = .sub_gpr,
             .reg_format = .uint,
         };
     }
-    // fn fpr(name: []const u8, dwarf: i32, size: usize, field: []const u8, format: RegisterFormat) RegisterDefinition {
-    //     return .{
-    //         .name = name,
-    //         .dwarf_id = dwarf,
-    //         .size = size,
-    //         .offset_calc = .{ .fpr = .{ .base = .other, .field_or_index = .{ .field_name = field } } },
-    //         .reg_type = .fpr,
-    //         .reg_format = format,
-    //     };
-    // }
+    fn fpr(
+        name: []const u8,
+        dwarf: ?u32,
+        field: []const u8,
+    ) RegisterDefinition {
+        return .{
+            .name = name,
+            .dwarf_id = dwarf,
+            .size = .{ .fp_reg = field },
+            .offset_calc = .{ .fpr = .{ .field = field } },
+            .reg_type = .fpr,
+            .reg_format = .uint,
+        };
+    }
     // fn fp_st(num: u4) RegisterDefinition {
     //     return .{
     //         .name = "st" ++ std.fmt.comptimePrint("{d}", .{num}),
@@ -273,14 +279,14 @@ pub const RegisterDefinition = struct {
     //         .reg_format = .vector,
     //     };
     // }
-    // fn dr(num: u4) RegisterDefinition {
-    //     return .{
-    //         .name = "dr" ++ std.fmt.comptimePrint("{d}", .{num}),
-    //         .dwarf_id = -1,
-    //         .size = 8, // Debug registers are 64-bit on x86_64
-    //         .offset_calc = .{ .dr = num },
-    //         .reg_type = .dr,
-    //         .reg_format = .uint,
-    //     };
-    // }
+    fn dr(num: u4) RegisterDefinition {
+        return .{
+            .name = "dr" ++ std.fmt.comptimePrint("{d}", .{num}),
+            .dwarf_id = null,
+            .size = .{ .raw = 8 },
+            .offset_calc = .{ .dr = num },
+            .reg_type = .dr,
+            .reg_format = .uint,
+        };
+    }
 };

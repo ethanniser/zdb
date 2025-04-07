@@ -81,26 +81,39 @@ const AllRegisters: [definitions.len]This = blk: {
     var infos: [len]This = undefined;
 
     const base_gpr_offset = @offsetOf(CSysUser.user, "regs");
-    // const base_fpr_offset = @offsetOf(CSysUser.user, "i387");
-    // const base_dr_offset = @offsetOf(CSysUser.user, "u_debugreg");
+    const base_fpr_offset = @offsetOf(CSysUser.user, "i387");
+    const base_dr_offset = @offsetOf(CSysUser.user, "u_debugreg");
 
     for (definitions, 0..) |def, i| {
         const final_offset = switch (def.offset_calc) {
             .gpr => |field_name| base_gpr_offset + @offsetOf(CSysUser.user_regs_struct, field_name),
             .sub_gpr => |sub_info| base_gpr_offset + @offsetOf(CSysUser.user_regs_struct, sub_info.super_reg_field) + sub_info.byte_offset,
-            // .fpr => |fpr_info| switch (fpr_info.base) {
-            //     .st_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "st_space") + fpr_info.field_or_index.index * 16,
-            //     .xmm_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "xmm_space") + fpr_info.field_or_index.index * 16,
-            //     .other => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, fpr_info.field_or_index.field_name),
-            // },
-            // .dr => |dr_num| base_dr_offset + dr_num * 8,
+            .fpr => |fpr_info| switch (fpr_info) {
+                // .st_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "st_space") + fpr_info.field_or_index.index * 16,
+                // .xmm_space => base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, "xmm_space") + fpr_info.field_or_index.index * 16,
+                .field => |field_name| base_fpr_offset + @offsetOf(CSysUser.user_fpregs_struct, field_name),
+            },
+            .dr => |dr_num| base_dr_offset + dr_num * @sizeOf(c_longlong),
+        };
+
+        const final_size = switch (def.size) {
+            .raw => |val| val,
+            .fp_reg => |name| blk2: {
+                const fpregs_typeinfo = @typeInfo(CSysUser.user_fpregs_struct);
+                for (fpregs_typeinfo.@"struct".fields) |field| {
+                    if (std.mem.eql(u8, field.name, name)) {
+                        break :blk2 @sizeOf(field.type);
+                    }
+                }
+                @compileError(std.fmt.comptimePrint("Field {s} not found in user_fpregs_struct", .{name}));
+            },
         };
 
         infos[i] = .{
             .id = @enumFromInt(i), // this should be ok both `Id` and this loop in the same order?
             .name = def.name,
             .dwarf_id = def.dwarf_id,
-            .size = def.size,
+            .size = final_size,
             .offset = final_offset,
             .type = def.reg_type,
             .format = def.reg_format,
@@ -165,31 +178,24 @@ test "gpr 8 low lookup" {
     try std.testing.expectEqual(Format.uint, al_info.format);
 }
 
-// const al_info = getByName("al") orelse unreachable;
-// try std.testing.expectEqual(Id.al, al_info.id);
-// try std.testing.expectEqual(@as(usize, 1), al_info.size);
-// try std.testing.expectEqual(@as(i32, -1), al_info.dwarf_id);
-// try std.testing.expectEqual(Type.sub_gpr, al_info.type);
-// // Check offset relative to rax
-// try std.testing.expectEqual(rax_info.offset, al_info.offset);
+test "fpr lookup" {
+    const fcw_info = comptime getById(.fcw);
+    try std.testing.expectEqual(.fcw, fcw_info.id);
+    try std.testing.expectEqualStrings("fcw", fcw_info.name);
+    try std.testing.expectEqual(@as(?u32, 65), fcw_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 2), fcw_info.size);
+    try std.testing.expectEqual(fcw_info.offset, @offsetOf(CSysUser.user, "i387") + @offsetOf(CSysUser.user_fpregs_struct, "cwd"));
+    try std.testing.expectEqual(Type.fpr, fcw_info.type);
+    try std.testing.expectEqual(Format.uint, fcw_info.format);
+}
 
-// const ah_info = getByName("ah") orelse unreachable;
-// try std.testing.expectEqual(Id.ah, ah_info.id);
-// try std.testing.expectEqual(@as(usize, 1), ah_info.size);
-// // Check offset relative to rax
-// try std.testing.expectEqual(rax_info.offset + 1, ah_info.offset);
-
-// const st0_info = getByDwarf(33) orelse unreachable; // ST0 has dwarf_id 33
-// try std.testing.expectEqualStrings("st0", st0_info.name);
-// try std.testing.expectEqual(Id.st0, st0_info.id);
-// try std.testing.expectEqual(@as(usize, 16), st0_info.size);
-// try std.testing.expectEqual(Format.long_double, st0_info.format);
-
-// const xmm3_info = getById(.xmm3);
-// try std.testing.expectEqualStrings("xmm3", xmm3_info.name);
-// try std.testing.expectEqual(@as(i32, 17 + 3), xmm3_info.dwarf_id);
-
-// // Test non-existent lookup
-// try std.testing.expect(getByName("nonexistent") == null);
-// try std.testing.expect(getByDwarf(9999) == null);
-// try std.testing.expect(getByDwarf(-5) == null);
+test "debug lookup" {
+    const dr1_info = comptime getById(.dr1);
+    try std.testing.expectEqual(.dr1, dr1_info.id);
+    try std.testing.expectEqualStrings("dr1", dr1_info.name);
+    try std.testing.expectEqual(@as(?u32, null), dr1_info.dwarf_id);
+    try std.testing.expectEqual(@as(usize, 8), dr1_info.size);
+    try std.testing.expectEqual(dr1_info.offset, @offsetOf(CSysUser.user, "u_debugreg") + @sizeOf(c_longlong) * 1);
+    try std.testing.expectEqual(Type.dr, dr1_info.type);
+    try std.testing.expectEqual(Format.uint, dr1_info.format);
+}
